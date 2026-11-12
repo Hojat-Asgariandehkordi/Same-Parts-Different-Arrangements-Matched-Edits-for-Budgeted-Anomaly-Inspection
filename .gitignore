@@ -1,0 +1,16 @@
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.brf
+*.toc
+__pycache__/
+scripts/fonts/
+*.npz
+*.nii
+*.nii.gz
+data/
