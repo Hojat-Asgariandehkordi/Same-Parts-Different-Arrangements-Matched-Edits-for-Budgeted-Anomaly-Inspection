@@ -89,6 +89,16 @@ A fresh reviewer agent, not involved in making the figures, reviewed every figur
 
 **Still needs your data:** the analysis outputs to regenerate the Fig. 4 and Fig. 5c curves and the Fig. 3 and 5 score maps (currently recovered from the draft's figures), and full-resolution photos.
 
+## Writing style pass (CVPR conventions)
+- **Main paper:**
+  - The "Step 1–4" paragraphs, bullet-list criteria and chatty headings ("Main result", "What does not improve", "Where the budget changes the picture") are replaced by connected academic prose.
+  - Standard structure: Introduction · Related work · Method (Problem setting, Matched edits, Calibrated inspection queue, Footprint supervision, Evaluation protocol) · Experiments (Implementation details, Diagnosis of the released model, Effect of footprint supervision, Continuation of the original recipe) · Branch selection under two rules · Response evidence in part graphs · Limitations · Conclusion.
+  - Every number, equation, table and figure is unchanged.
+- **Supplement:**
+  - The protocol, training and data-use sections are rewritten as method descriptions, not an implementation log. Removed: "pinned", "locked", "receipts", "digests", hash bookkeeping and the full commit hash (now short `753ba94`).
+  - Section titles are standardised.
+  - Wording is aligned with the main paper: "alarm", "compartment", "pre-specified".
+
 ## Open items for the group
 1. **Number conflict:** for the GlaS local-spacing gain, the draft text gave 15.3 [11.0, 20.3]. `tables/switches.tex` (original-length tier) gives +15.3 [10.9, 20.1]. The main text now uses the table. Please confirm.
 2. **Confirm the recovered values** listed above.
