@@ -1,10 +1,12 @@
-"""Fig. 1 (teaser schematic) and Fig. 2 (pipeline).
+"""Fig. 1 (teaser) and Fig. 2 (pipeline).
 
-Trays are drawn exactly (5 columns x 3 rows, one pin per compartment) because
-the BioRender generator drew 3x4 trays. From the BioRender art
-(figures/biorender/pipeline.jpg, https://app.biorender.com/illustrations/d6cd7a9c81d719adaeed28c0)
-we reuse only the camera, the two network blocks, the alarm gate and the
-inspector; every label is typeset here in Times.
+BioRender art used (all labels are typeset here in Times):
+  figures/biorender/edits.jpg    four matched trays, https://app.biorender.com/illustrations/89279b87d8b90f86021b6c98
+                                 (drawn 3 wide x 5 tall; each tray is rotated 90 deg to the real 5x3 layout)
+  figures/biorender/sprites.jpg  pushpin sprite, https://app.biorender.com/illustrations/34d915d6560d8c96482046fe
+  figures/biorender/pipeline.jpg network-block icons, https://app.biorender.com/illustrations/d6cd7a9c81d719adaeed28c0
+Trays in Fig. 1(b) and Fig. 2 are drawn in code with the sprite so that the
+5x3 compartment count and the moved pins are exact.
 Run: python -I scripts/fig_schematic.py
 """
 import sys
@@ -14,268 +16,353 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import data as D  # noqa: E402
 import style  # noqa: E402
 
 style.setup()
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle  # noqa: E402
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon, Rectangle  # noqa: E402
 
 C = style.C
-NCOL, NROW = 5, 3
-PIN = "#f2b01e"
-TRAY = "#2b2b2e"
-CELL = "#3a3a3f"
-rng = np.random.default_rng(7)
-# fixed pin pose per cell: offset inside the cell and angle
-POSE = {(c, r): (rng.uniform(-0.18, 0.18), rng.uniform(-0.15, 0.15), rng.uniform(0, 180))
-        for c in range(NCOL) for r in range(NROW)}
+NC, NR = 5, 3
+PIN = style.sprite("pin")
+GREY = plt.get_cmap(style.SCORE_CMAP)
+rng = np.random.default_rng(11)
+POSE = {(c, r): (rng.uniform(-0.12, 0.12), rng.uniform(-0.1, 0.1), rng.uniform(-60, 60))
+        for c in range(NC) for r in range(NR)}
+# the running fault, as in the BioRender trays after rotation: the pin of the
+# centre compartment (col 2, row 1) moves up into (col 2, row 0)
+VAC, REC = (2, 1), (2, 0)
 
 
-def pin(ax, x, y, s, ang, color=PIN, z=5):
-    a = np.deg2rad(ang)
-    dx, dy = np.cos(a) * s, np.sin(a) * s
-    ax.plot([x - dx, x + dx * 0.4], [y - dy, y + dy * 0.4], color="#7a6a4a", lw=0.6, zorder=z)
-    ax.plot([x + dx * 0.15, x + dx * 0.55], [y + dy * 0.15, y + dy * 0.55], color=color, lw=2.2,
-            solid_capstyle="butt", zorder=z + 1)
-    ax.add_patch(Rectangle((x + dx * 0.55 - s * 0.16, y + dy * 0.55 - s * 0.16), s * 0.32, s * 0.32,
-                           angle=0, color=color, zorder=z + 1))
+def pin_img(angle, white=False):
+    im = Image.fromarray(PIN).rotate(angle, expand=True, resample=Image.BICUBIC)
+    a = np.asarray(im).copy()
+    if white:
+        a[..., :3] = 255
+    return a
 
 
-def tray(ax, x0, y0, w, pins=None, heat=None, cmap=None, targets=(), dashed=(), queued=(),
-         extra=None, missing=(), label=None, faint=False):
-    """Draw a 5x3 tray with lower-left corner (x0, y0) and width w.
+def draw_pin(ax, x, y, length, angle, white=False, alpha=1.0, z=6):
+    a = pin_img(angle, white)
+    h, w = a.shape[:2]
+    s = length / PIN.shape[1]
+    ax.imshow(a, extent=(x - w * s / 2, x + w * s / 2, y - h * s / 2, y + h * s / 2),
+              zorder=z, alpha=alpha, interpolation="lanczos")
 
-    pins: cells with their normal pin (default all); extra: {cell: n extra pins};
-    heat: 5x3 array in [0,1] drawn as cell colour; targets/dashed/queued: cell boxes.
+
+def tray(ax, x0, y0, w, pins, fill=None, outline=None, mask=False, frame=True):
+    """5x3 tray at lower-left (x0, y0), width w (data units = inches).
+
+    pins: {cell: [(dx, dy, angle), ...]}; fill: {cell: grey value 0..1};
+    outline: {cell: (colour, linestyle)}; mask: white pins on black (training target).
     """
-    h = w * NROW / NCOL
-    cw, ch = w / NCOL, h / NROW
-    ax.add_patch(FancyBboxPatch((x0 - cw * 0.08, y0 - ch * 0.08), w + cw * 0.16, h + ch * 0.16,
-                                boxstyle="round,pad=0,rounding_size=%.3f" % (cw * 0.15),
-                                fc="#bdbdbd" if not faint else "#e0e0e0", ec="none", zorder=1))
-    for c in range(NCOL):
-        for r in range(NROW):
-            cx, cy = x0 + c * cw, y0 + (NROW - 1 - r) * ch
-            fc = CELL if heat is None else cmap(heat[r, c])
-            ax.add_patch(Rectangle((cx + cw * 0.04, cy + ch * 0.04), cw * 0.92, ch * 0.92,
-                                   fc=fc, ec="none", zorder=2))
-            mx, my = cx + cw / 2, cy + ch / 2
-            ox, oy, ang = POSE[(c, r)]
-            if (c, r) not in missing and (pins is None or (c, r) in pins):
-                pin(ax, mx + ox * cw, my + oy * ch, cw * 0.32, ang)
-            for k in range((extra or {}).get((c, r), 0)):
-                pin(ax, mx - ox * cw * 0.6 + 0.12 * cw, my - 0.22 * ch, cw * 0.32, ang + 70)
-            box = None
-            if (c, r) in targets:
-                box = dict(ec=C["target"], ls="-")
-            if (c, r) in dashed:
-                box = dict(ec=C["target"], ls=(0, (2, 1.2)))
-            if (c, r) in queued:
-                box = dict(ec=C["queued"], ls="-")
-            if box:
-                ax.add_patch(Rectangle((cx + cw * 0.06, cy + ch * 0.06), cw * 0.88, ch * 0.88,
-                                       fc="none", lw=1.3, zorder=8, **box))
-    if label:
-        ax.text(x0 + w / 2, y0 + h + ch * 0.35, label, ha="center", va="bottom", fontsize=8)
+    cw = w / NC
+    h = cw * NR
+    if frame:
+        ax.add_patch(FancyBboxPatch((x0 - .03, y0 - .03), w + .06, h + .06,
+                                    boxstyle="round,pad=0,rounding_size=0.05",
+                                    fc="black" if mask else "#9a9a9a", ec="none", zorder=1))
+    for c in range(NC):
+        for r in range(NR):
+            cx, cy = x0 + c * cw, y0 + (NR - 1 - r) * cw
+            if mask:
+                fc = "black"
+            elif fill is not None:
+                fc = GREY(fill[(c, r)])
+            else:
+                fc = "#2e2e31"
+            ax.add_patch(Rectangle((cx + .012, cy + .012), cw - .024, cw - .024, fc=fc, ec="none", zorder=2))
+            for dx, dy, ang in pins.get((c, r), []):
+                draw_pin(ax, cx + cw * (0.5 + dx), cy + cw * (0.5 + dy), cw * 0.62, ang, white=mask,
+                         alpha=0.55 if (fill is not None and not mask) else 1.0)
+            if outline and (c, r) in outline:
+                col, ls = outline[(c, r)]
+                ax.add_patch(Rectangle((cx + .03, cy + .03), cw - .06, cw - .06, fc="none", ec=col,
+                                       lw=1.5, ls=ls, zorder=9))
     return h
 
 
-def arrow(ax, p0, p1, color="#555555", lw=1.0, rad=0.0, z=9):
-    ax.add_patch(FancyArrowPatch(p0, p1, arrowstyle="-|>", mutation_scale=7, lw=lw,
+def vac_mark(ax, x0, y0, w):
+    """Vacated footprint in a training mask: a grey pin (marked in both policies)."""
+    cw = w / NC
+    c, r = VAC
+    a = pin_img(POSE[VAC][2], white=True)
+    a[..., :3] = 150
+    hh, ww = a.shape[:2]
+    s = cw * 0.62 / PIN.shape[1]
+    x = x0 + (c + 0.5) * cw
+    y = y0 + (NR - 1 - r + 0.5) * cw
+    ax.imshow(a, extent=(x - ww * s / 2, x + ww * s / 2, y - hh * s / 2, y + hh * s / 2), zorder=7)
+
+
+def layout(kind):
+    """Pins per cell for the source / fault arrangement."""
+    p = {k: [v] for k, v in POSE.items()}
+    if kind == "fault":
+        p[VAC] = []
+        p[REC] = [(-0.18, 0.12, POSE[REC][2]), (0.12, -0.16, POSE[VAC][2] + 25)]
+    return p
+
+
+def arrow(ax, p0, p1, color="#444444", lw=1.0, ls="-", rad=0.0, z=10, ms=8):
+    ax.add_patch(FancyArrowPatch(p0, p1, arrowstyle="-|>", mutation_scale=ms, lw=lw, ls=ls,
                                  color=color, connectionstyle=f"arc3,rad={rad}", zorder=z))
 
 
-def teaser():
-    fig = plt.figure(figsize=(style.FULL, 2.25))
+def canvas(w, h):
+    fig = plt.figure(figsize=(w, h))
     ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 33)
+    ax.set_xlim(0, w)
+    ax.set_ylim(0, h)
+    ax.set_aspect("equal")
     ax.axis("off")
-    w = 11.4
+    return fig, ax
 
-    # (a) matched edits ------------------------------------------------------
-    ax.text(0.5, 31.6, "(a) Matched edits of one held-out photo", fontweight="bold", fontsize=8.5)
-    src, dst = (1, 1), (2, 1)   # the pin of cell (col 1, row 1) moves to its right neighbour
-    y = 16.4
-    xs = [0.6, 12.9, 25.2, 37.5]
-    cw = w / NCOL
-    ch = cw
-    tray(ax, xs[0], y, w, label="Source")
-    tray(ax, xs[1], y, w, missing=[src], label="Valid sham")
-    tray(ax, xs[2], y, w, missing=[src], extra={dst: 1}, targets=[dst], dashed=[src], label="Fault")
-    tray(ax, xs[3], y, w, missing=[src], dashed=[src], label="Vacancy only")
-    sx = xs[1] + (src[0] + 0.5) * cw
-    sy = y + (NROW - 1 - src[1] + 0.5) * ch
-    ox, oy, ang = POSE[src]
-    # sham: the same pin, displaced inside its own cell (same distance as the fault move)
-    pin(ax, sx - 0.25 * cw, sy - 0.2 * ch, cw * 0.32, ang + 70)
-    arrow(ax, (sx + ox * cw, sy + oy * ch + 0.5), (sx - 0.2 * cw, sy - 0.05 * ch), color="white", lw=0.8)
-    fx = xs[2] + (src[0] + 0.5) * cw
-    arrow(ax, (fx - 0.2 * cw, sy), (fx + cw * 0.75, sy), color="white", lw=0.9)
-    notes = ["one pin per cell", "pin moved within\nits own cell (valid)",
-             "same move into the\noccupied neighbour", "pin removed:\nthe vacancy alone"]
-    for x, n in zip(xs, notes):
-        ax.text(x + w / 2, y - 1.0, n, ha="center", va="top", fontsize=6.8, color="#333333",
-                linespacing=1.05)
-    ax.text(24.6, 6.4, "Same cutout, background fill and displacement in every arm. The vacated and\n"
-                       "recipient cells (cyan) are the two compartments an inspector must check.",
-            ha="center", va="center", fontsize=6.8, style="italic", color="#333333", linespacing=1.1)
 
-    # divider
-    ax.plot([50.2, 50.2], [2, 31], color="#cccccc", lw=0.6)
+# ---------------------------------------------------------------------------
+def teaser():
+    W, H = style.FULL, 2.95
+    fig, ax = canvas(W, H)
 
-    # (b) supervision -> queue ----------------------------------------------
-    ax.text(51.2, 31.6, "(b) After an alert: which compartments are queued?", fontweight="bold",
-            fontsize=8.5)
-    cmap = plt.get_cmap("magma")
-    w2 = 9.6
-    rows = [(19.0, "Class-wide target", "every pin of the class\nis marked anomalous",
-             True, "2 targets + 11 untouched cells"),
-            (4.6, "Footprint target", "only the pasted pin\nis marked anomalous",
-             False, "2 targets + 0 untouched cells")]
-    for yy, title, sub, broad, qtxt in rows:
-        # training target: binary mask drawn as white pins on black
-        h = w2 * NROW / NCOL
-        cw2 = w2 / NCOL
-        ax.add_patch(Rectangle((52.0, yy), w2, h, fc="black", ec="#888888", lw=0.5, zorder=1))
-        for c in range(NCOL):
-            for r in range(NROW):
-                ox, oy, ang = POSE[(c, r)]
-                cx = 52.0 + (c + 0.5 + ox) * cw2
-                cy = yy + (NROW - 1 - r + 0.5 + oy) * cw2
-                on = broad or (c, r) == dst
-                if broad or (c, r) == dst:
-                    pin(ax, cx, cy, cw2 * 0.32, ang, color="white" if on else "#333333")
-        ax.text(52.0 + w2 / 2, yy + h + 0.5, title, ha="center", va="bottom", fontsize=7.6,
-                fontweight="bold")
-        ax.text(52.0 + w2 / 2, yy - 0.5, sub, ha="center", va="top", fontsize=6.4, color="#333333",
-                linespacing=1.0)
-        arrow(ax, (63.0, yy + h / 2), (67.6, yy + h / 2))
-        ax.text(65.3, yy + h / 2 + 0.6, "fine-tune", ha="center", va="bottom", fontsize=6.2)
-        # test map on the fault, per-cell maximum score
-        heat = np.full((NROW, NCOL), 0.08)
-        if broad:
-            heat = np.array([[.72, .66, .80, .70, .62], [.75, .88, .93, .69, .71], [.64, .70, .77, .68, .73]])
-        heat[src[1], src[0]] = 0.95
-        heat[dst[1], dst[0]] = 0.97
-        targ = [src, dst]
-        queued = [(c, r) for c in range(NCOL) for r in range(NROW)
-                  if (c, r) not in targ and heat[r, c] >= 0.66]
-        tray(ax, 68.4, yy, w2, heat=heat, cmap=cmap, missing=[src], extra={dst: 1},
-             targets=targ, queued=queued)
-        ax.text(68.4 + w2 / 2, yy + h + 0.5, "score map on the fault", ha="center", va="bottom",
-                fontsize=7)
-        arrow(ax, (79.0, yy + h / 2), (83.0, yy + h / 2))
-        ax.text(81.0, yy + h / 2 + 0.6, r"$g\geq t_c$", ha="center", va="bottom", fontsize=7)
-        col = C["classwide"] if broad else C["footprint"]
-        ax.text(83.6, yy + h / 2 + 1.3, "inspection queue", fontsize=7, va="bottom")
-        ax.text(83.6, yy + h / 2, qtxt, fontsize=7, va="center", color=col, fontweight="bold")
-        ax.text(83.6, yy + h / 2 - 1.3, "long queue at 95% recall" if broad else
-                "short queue at 95% recall", fontsize=6.6, va="top", color="#333333")
-    # legend for boxes
-    ax.add_patch(Rectangle((84.0, 1.2), 1.2, 1.0, fc="none", ec=C["target"], lw=1.2))
-    ax.text(85.6, 1.7, "target cell", fontsize=6.4, va="center")
-    ax.add_patch(Rectangle((91.0, 1.2), 1.2, 1.0, fc="none", ec=C["queued"], lw=1.2))
-    ax.text(92.6, 1.7, "queued untouched", fontsize=6.4, va="center")
+    # (a) BioRender matched trays, rotated to 5x3 --------------------------
+    ax.text(0.02, H - 0.05, "(a) Matched edits of one held-out photo", fontweight="bold", fontsize=9,
+            va="top")
+    ax.text(0.02, H - 0.24, "same pin  ·  same cutout and fill  ·  same distance", fontsize=7.5,
+            va="top", style="italic", color="#333333")
+    art = Image.open(style.FIG / "biorender" / "edits.jpg").convert("RGB")
+    boxes = [(10, 108, 256, 458), (263, 108, 510, 458), (516, 108, 762, 458), (769, 108, 1015, 458)]
+    tw = 1.36
+    pos = [(0.12, 1.65), (1.82, 1.65), (0.12, 0.38), (1.82, 0.38)]
+    labels = [("Source", "one pin per compartment", "no target", "#333333"),
+              ("Valid sham (allowed)", "moved within its compartment", "no target", C["sham"]),
+              ("Fault (breaks the rule)", "same move into the neighbour", "2 targets", C["fault"]),
+              ("Vacancy only", "pin removed", "1 target", C["vacancy"])]
+    for (bx, by), b, (t1, t2, t3, col) in zip(pos, boxes, labels):
+        im = np.asarray(art.crop(b).transpose(Image.ROTATE_90))
+        th = tw * im.shape[0] / im.shape[1]
+        ax.imshow(im, extent=(bx, bx + tw, by, by + th), zorder=2, interpolation="lanczos")
+        ax.text(bx, by - 0.04, t1, fontsize=8, fontweight="bold", color=col, va="top")
+        ax.text(bx, by - 0.2, f"{t2}; {t3}", fontsize=7.5, va="top", color="#333333")
+    ax.plot([3.42, 3.42], [0.1, H - 0.1], color="#cccccc", lw=0.6)
+
+    # (b) what the inspector receives ---------------------------------------
+    x0 = 3.55
+    ax.text(x0, H - 0.05, "(b) After an alarm on the fault: which compartments are opened?",
+            fontweight="bold", fontsize=9, va="top")
+    fault = layout("fault")
+    targets = {VAC: (C["target"], (0, (2.2, 1.4))), REC: (C["target"], "-")}
+    rows = [(1.72, "Class-wide target", "every pin of the class marked", True),
+            (0.56, "Footprint target", "only the pasted pin marked", False)]
+    mw = 0.98
+    for y, title, sub, broad in rows:
+        # training target on the same edited tray (vacated footprint marked in both)
+        mpins = {k: (v if broad else []) for k, v in fault.items()}
+        if not broad:
+            mpins[REC] = [fault[REC][1]]
+        h = tray(ax, x0 + 0.02, y, mw, mpins, mask=True)
+        vac_mark(ax, x0 + 0.02, y, mw)
+        ax.text(x0 + 0.02, y + h + 0.08, title, fontsize=8, fontweight="bold", va="bottom",
+                color=C["classwide"] if broad else C["footprint"])
+        ax.text(x0 + 0.02, y - 0.05, "training mask $y$: " + sub, fontsize=7.5, va="top")
+        ax.text(x0 + 0.02, y - 0.2, "(grey: vacated spot, marked in both)", fontsize=7, va="top",
+                color="#555555")
+        arrow(ax, (x0 + mw + 0.08, y + h / 2), (x0 + mw + 0.34, y + h / 2))
+        # test-time compartment scores (schematic) and the queue
+        vals = {}
+        for c in range(NC):
+            for r in range(NR):
+                vals[(c, r)] = (0.66 + 0.18 * ((c * 7 + r * 3) % 5) / 4) if broad else 0.04 + 0.02 * ((c + r) % 3)
+        vals[VAC], vals[REC] = (0.97, 0.94) if broad else (0.86, 0.72)
+        tc = 0.6
+        out = dict(targets)
+        for k, v in vals.items():
+            if k not in targets and v >= tc:
+                out[k] = (C["queued"], "-")
+        mx = x0 + mw + 0.42
+        tray(ax, mx, y, mw, fault, fill=vals, outline=out)
+        ax.text(mx, y + h + 0.08, "compartment scores at test", fontsize=7.5, va="bottom")
+        n_q = sum(1 for k in out if k not in targets)
+        arrow(ax, (mx + mw + 0.08, y + h / 2), (mx + mw + 0.34, y + h / 2))
+        ax.text(mx + mw + 0.21, y + h / 2 + 0.05, r"$g\geq t_c$", fontsize=7.5, ha="center", va="bottom")
+        # queue as a 5x3 block of 15 boxes
+        qx = mx + mw + 0.42
+        bw = 0.135
+        for k in range(15):
+            col = C["target"] if k < 2 else (C["queued"] if k < 2 + n_q else "white")
+            ax.add_patch(Rectangle((qx + (k % 5) * bw, y + h - 0.02 - (k // 5 + 1) * bw), bw * .86, bw * .86,
+                                   fc=col, ec="#888888", lw=0.4, zorder=3))
+        ax.text(qx, y + h + 0.08, "compartments opened", fontsize=7.5, va="bottom")
+        ax.text(qx, y + h - 0.12 - 3 * bw, f"{2 + n_q} of 15", fontsize=9, fontweight="bold", va="top",
+                color=C["classwide"] if broad else C["footprint"])
+        ax.text(qx, y + h - 0.33 - 3 * bw, f"2 targets + {n_q} untouched", fontsize=7.5, va="top")
+    # legend + colour bar
+    ly = 0.08
+    ax.add_patch(Rectangle((x0 + 0.02, ly), 0.12, 0.09, fc="none", ec=C["target"], lw=1.4))
+    ax.text(x0 + 0.18, ly + 0.045, "target", fontsize=7.5, va="center")
+    ax.add_patch(Rectangle((x0 + 0.62, ly), 0.12, 0.09, fc="none", ec=C["queued"], lw=1.4))
+    ax.text(x0 + 0.78, ly + 0.045, "queued untouched", fontsize=7.5, va="center")
+    cb = np.linspace(0, 1, 128)[None]
+    ax.imshow(cb, cmap=GREY, extent=(x0 + 1.95, x0 + 2.95, ly, ly + 0.09), aspect="auto", zorder=3)
+    ax.add_patch(Rectangle((x0 + 1.95, ly), 1.0, 0.09, fc="none", ec="#666666", lw=0.4, zorder=4))
+    ax.text(x0 + 1.9, ly + 0.045, "score 0", fontsize=7.5, ha="right", va="center")
+    ax.text(x0 + 3.0, ly + 0.045, "1", fontsize=7.5, va="center")
+    ax.plot([x0 + 1.95 + 0.6] * 2, [ly - 0.02, ly + 0.11], color=C["queued"], lw=1.0, zorder=5)
+    ax.text(x0 + 2.55, ly + 0.12, "$t_c$", fontsize=7.5, ha="center", va="bottom")
     style.save(fig, "teaser")
 
 
-def icon(name, box, thr=236):
-    """Crop a BioRender element and make its near-white background transparent."""
+# ---------------------------------------------------------------------------
+def icon(box, thr=236):
     im = Image.open(style.FIG / "biorender" / "pipeline.jpg").convert("RGB").crop(box)
     a = np.asarray(im).astype(float)
     alpha = np.where(a.min(axis=2) > thr, 0, 255).astype(np.uint8)
     return np.dstack([a.astype(np.uint8), alpha])
 
 
+def place(ax, img, x, y, w, z=3):
+    h = w * img.shape[0] / img.shape[1]
+    ax.imshow(img, extent=(x, x + w, y, y + h), zorder=z, interpolation="lanczos")
+    return h
+
+
+def label(ax, x, y, t1, t2=None, col="black"):
+    ax.text(x, y, t1, fontsize=7.5, ha="center", va="top", color=col)
+    if t2:
+        ax.text(x, y - 0.15, t2, fontsize=7, ha="center", va="top", color="#444444")
+
+
+def part_map_from_photo(photo):
+    """Illustrative part map of the running photo: pins (orange) by colour, tray (grey) by brightness."""
+    a = photo.astype(int)
+    pin = (a[..., 0] > 150) & (a[..., 1] > 100) & (a[..., 2] < 110)
+    tray_px = (a.mean(-1) > 105) & ~pin
+    out = np.zeros(a.shape, np.uint8)
+    out[:] = (29, 42, 77)
+    out[tray_px] = (150, 160, 175)
+    out[pin] = (240, 138, 60)
+    return out
+
+
 def pipeline():
-    fig = plt.figure(figsize=(style.FULL, 1.55))
-    ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 22.5)
-    ax.axis("off")
-    H = 22.5 / 1.55 * 6.875 / 100  # aspect: data units per x unit
-
-    def place(img, x, y, wdt):
-        hh = wdt * img.shape[0] / img.shape[1] / H
-        ax.imshow(img, extent=(x, x + wdt, y, y + hh), zorder=3, interpolation="lanczos")
-        return hh
-
-    cam = icon("camera", (70, 88, 132, 182))
-    place(cam, 0.6, 10.5, 4.6)
+    W, H = style.FULL, 2.45
+    fig, ax = canvas(W, H)
     photo = np.asarray(Image.open(style.FIG / "assets" / "pushpin_intervention_2.png").convert("RGB"))
-    place(photo, 5.6, 8.6, 11.0)
-    ax.text(11.1, 6.9, "RGB photo $x_i$", ha="center", va="top", fontsize=7)
-    ax.text(11.1, 4.9, "(held-out, edited)", ha="center", va="top", fontsize=6.4, color="#444444")
-    arrow(ax, (17.0, 12.3), (19.0, 12.3))
+    row = D.PHOTO_ROWS[0]
+    vac, rec = row["src"], row["dst"]
+    iw = 0.86
+    yb = 0.55   # bottom lane baseline
 
-    un1 = icon("unet1", (190, 255, 262, 335))
-    place(un1, 19.3, 9.5, 5.2)
-    ax.text(21.9, 6.9, "part extractor", ha="center", va="top", fontsize=7)
-    ax.text(21.9, 4.9, "(U-Net, or oracle)", ha="center", va="top", fontsize=6.4, color="#444444")
-    arrow(ax, (25.0, 12.3), (27.0, 12.3))
+    # ---- training lane (top) --------------------------------------------
+    ax.add_patch(FancyBboxPatch((0.03, 1.53), 3.62, 0.88, boxstyle="round,pad=0,rounding_size=0.05",
+                                fc="#eef6f2", ec=C["train"], lw=0.8, zorder=0))
+    ax.text(0.1, 2.37, "Training: only the target mask $y$ changes", fontsize=8, fontweight="bold",
+            color=C["train"], va="top")
+    tr = layout("fault")
+    w0 = 0.78
+    h0 = tray(ax, 0.18, 1.65, w0, tr, fill={k: 0.08 for k in POSE})
+    ax.text(0.18 + w0 / 2, 1.63, "synthetic edit", fontsize=7.5, ha="center", va="top")
+    arrow(ax, (1.0, 1.65 + h0 / 2), (1.2, 1.65 + h0 / 2))
+    ww = 0.58
+    for k, (nm, broad) in enumerate((("class-wide", True), ("footprint", False))):
+        mp = {kk: (v if broad else []) for kk, v in tr.items()}
+        if not broad:
+            mp[REC] = [tr[REC][1]]
+        xx = 1.24 + k * 0.82
+        hh = tray(ax, xx, 1.79, ww, mp, mask=True)
+        vac_mark(ax, xx, 1.79, ww)
+        ax.text(xx + ww / 2, 1.75, nm, fontsize=7.5, ha="center", va="top",
+                color=C["classwide"] if broad else C["footprint"], fontweight="bold")
+    ax.text(1.24 + 0.58 + 0.12, 1.79 + hh / 2, "or", fontsize=7.5, ha="center", va="center")
+    arrow(ax, (2.68, 1.65 + h0 / 2), (2.88, 1.65 + h0 / 2))
+    ax.text(3.27, 1.97, "loss (Eq. 4),\n800 steps", fontsize=7.5, ha="center", va="center", linespacing=1.0)
 
-    # part map: dark background with orange pins (schematic 6-class map)
-    w = 10.0
-    h = w * NROW / NCOL / H * (1 / 1)
-    cw = w / NCOL
-    ax.add_patch(Rectangle((27.4, 8.6), w, w * 3 / 5 / H, fc="#1d2a4d", ec="none", zorder=2))
-    hh = w * 3 / 5 / H
-    for c in range(NCOL):
-        for r in range(NROW):
-            ox, oy, ang = POSE[(c, r)]
-            pin(ax, 27.4 + (c + 0.5 + ox) * cw, 8.6 + (NROW - 1 - r + 0.5 + oy) * hh / NROW, cw * 0.3,
-                ang, color="#f08a3c")
-    ax.text(32.4, 6.9, "part map $m_i$", ha="center", va="top", fontsize=7)
-    ax.text(32.4, 4.9, "(6 classes)", ha="center", va="top", fontsize=6.4, color="#444444")
-    arrow(ax, (38.0, 12.3), (40.0, 12.3))
+    # ---- calibration box (top right) ------------------------------------
+    ax.add_patch(FancyBboxPatch((3.78, 1.53), 3.06, 0.88, boxstyle="round,pad=0,rounding_size=0.05",
+                                fc="#eef1f8", ec=C["calib"], lw=0.8, zorder=0))
+    ax.text(3.86, 2.37, "Fixed on development data (never on test)", fontsize=8, fontweight="bold",
+            color=C["calib"], va="top")
+    ax.text(3.86, 2.17, "$t_s$: 63rd smallest maximum of 69 normal photos\n"
+                       "      ($\\leq$10% of normal trays raise an alarm)\n"
+                       "$t_c$: highest cutoff that finds 95% of the\n"
+                       "      targets of 69 matched development faults",
+            fontsize=7.5, va="top", linespacing=1.15)
 
-    un2 = icon("unet2", (437, 255, 510, 335))
-    place(un2, 40.3, 9.5, 5.2)
-    ax.text(42.9, 6.9, "composition", ha="center", va="top", fontsize=7)
-    ax.text(42.9, 4.9, "branch (SALAD)", ha="center", va="top", fontsize=6.4, color="#444444")
-    arrow(ax, (46.0, 12.3), (48.0, 12.3))
-
-    gm = np.asarray(Image.open(style.FIG / "assets" / "guidance_maps_0.png").convert("RGB"))
-    gm = gm[24:116, :, :]  # tray region of the released map
-    place(gm, 48.3, 8.6, 10.0)
-    ax.text(53.3, 6.9, "score map $S_i$", ha="center", va="top", fontsize=7)
-    ax.text(53.3, 4.9, r"(pixels in $[0,1]$)", ha="center", va="top", fontsize=6.4, color="#444444")
-    arrow(ax, (58.9, 12.3), (60.9, 12.3))
-
-    gate = icon("gate", (683, 245, 762, 328))
-    place(gate, 61.1, 9.6, 5.6)
-    ax.text(63.9, 6.9, "scene gate", ha="center", va="top", fontsize=7)
-    ax.text(63.9, 4.9, r"$\max S_i > t_s$ ?", ha="center", va="top", fontsize=6.6)
-    arrow(ax, (67.3, 12.3), (69.3, 12.3))
-
-    # cell scores as bars with the cutoff
-    bx = 69.8
-    sc = np.array([.98, .96, .41, .35, .31, .28, .22, .2, .18, .15, .12, .1, .08, .06, .05])
-    for k, s in enumerate(sc):
-        col = C["target"] if k < 2 else ("#bbbbbb")
-        ax.add_patch(Rectangle((bx + k * 0.62, 8.8), 0.5, s * 8.5, fc=col, ec="none", zorder=3))
-    ax.plot([bx - 0.3, bx + 15 * 0.62], [8.8 + 0.6 * 8.5] * 2, color=C["queued"], lw=1.0, ls="--")
-    ax.text(bx + 15 * 0.62 + 0.2, 8.8 + 0.6 * 8.5, "$t_c$", fontsize=7, va="center", color=C["queued"])
-    ax.text(bx + 5.0, 6.9, "15 cell scores", ha="center", va="top", fontsize=7)
-    ax.text(bx + 5.0, 4.9, r"$g$ = maximum in cell $e$", ha="center", va="top", fontsize=6.4)
-    arrow(ax, (80.6, 12.3), (82.6, 12.3))
-
-    insp = icon("inspector", (952, 210, 1012, 422))
-    place(insp, 90.6, 4.6, 4.6)
-    ax.text(86.6, 15.5, r"queue $Q_i$", ha="center", va="bottom", fontsize=7)
-    ax.text(86.6, 13.3, r"$\{e: g\geq t_c\}$", ha="center", va="bottom", fontsize=6.6)
-    ax.text(86.6, 9.6, "recall $R$,\ncost $C$", ha="center", va="top", fontsize=6.6, linespacing=1.0)
-    ax.text(96.2, 2.6, "inspector", ha="center", va="top", fontsize=6.4, color="#444444")
-    # bracket for what we change
-    ax.annotate("", xy=(40.0, 20.0), xytext=(46.4, 20.0),
-                arrowprops=dict(arrowstyle="-", color=C["footprint"], lw=1.0))
-    ax.text(43.2, 20.4, "we fine-tune its training target", ha="center", va="bottom", fontsize=6.6,
-            color=C["footprint"])
-    ax.annotate("", xy=(61.0, 20.0), xytext=(80.0, 20.0),
-                arrowprops=dict(arrowstyle="-", color=C["released"], lw=1.0))
-    ax.text(70.5, 20.4, r"cutoffs $t_s$, $t_c$ fixed on development photos", ha="center", va="bottom",
-            fontsize=6.6, color=C["released"])
+    # ---- test lane (bottom) ---------------------------------------------
+    ax.text(0.06, 1.42, "Test-time inspection", fontsize=8, fontweight="bold", va="top")
+    x = 0.06
+    ph = place(ax, photo, x, yb, iw)
+    for (c, r), ls in ((vac, (0, (2, 1.2))), (rec, "-")):
+        X0, X1 = D.PHOTO_X[c], D.PHOTO_X[c + 1]
+        Y0, Y1 = D.PHOTO_Y[r], D.PHOTO_Y[r + 1]
+        ax.add_patch(Rectangle((x + X0 * iw, yb + ph * (1 - Y1)), (X1 - X0) * iw, (Y1 - Y0) * ph,
+                               fc="none", ec=C["target"], lw=1.1, ls=ls, zorder=6))
+    label(ax, x + iw / 2, yb - 0.05, "photo $x_i$ (a fault)", "held-out, edited")
+    arrow(ax, (x + iw + 0.03, yb + ph / 2), (x + iw + 0.15, yb + ph / 2))
+    un1 = icon((190, 255, 262, 335))
+    x = x + iw + 0.17
+    place(ax, un1, x, yb + 0.02, 0.33)
+    label(ax, x + 0.17, yb - 0.05, "U-Net", "extractor")
+    arrow(ax, (x + 0.36, yb + ph / 2), (x + 0.48, yb + ph / 2))
+    x = x + 0.5
+    pmap = part_map_from_photo(photo)
+    place(ax, pmap, x, yb, iw)
+    label(ax, x + iw / 2, yb - 0.05, "part map $m_i$")
+    # oracle bypass
+    arrow(ax, (x - 0.02, yb - 0.38), (x + 0.06, yb + 0.04), ls=(0, (3, 2)), color="#666666")
+    ax.text(x - 1.35, yb - 0.46, "oracle: same edit applied to the released label map",
+            fontsize=7, va="center", ha="left", color="#555555")
+    arrow(ax, (x + iw + 0.03, yb + ph / 2), (x + iw + 0.15, yb + ph / 2))
+    un2 = icon((437, 255, 510, 335))
+    x = x + iw + 0.17
+    place(ax, un2, x, yb + 0.02, 0.33)
+    ax.add_patch(Rectangle((x - 0.04, yb - 0.01), 0.41, 0.46, fc="none", ec=C["train"], lw=1.0, zorder=4))
+    label(ax, x + 0.17, yb - 0.05, "composition", "branch $f$")
+    arrow(ax, (x + 0.17, 1.53), (x + 0.17, yb + 0.47), color=C["train"], lw=1.0)
+    ax.text(x + 0.22, 1.45, "fine-tuned\nweights", fontsize=7, color=C["train"], va="top", linespacing=1.0)
+    arrow(ax, (x + 0.38, yb + ph / 2), (x + 0.5, yb + ph / 2))
+    x = x + 0.52
+    # running-example compartment scores: 2 targets + 3 untouched above t_c (the Eq. 3 example)
+    vals = {k: 0.12 + 0.08 * ((k[0] * 5 + k[1] * 3) % 4) for k in POSE}
+    vals[vac], vals[rec] = 0.97, 0.93
+    for k, v in zip(((1, 0), (1, 1), (3, 2)), (0.74, 0.69, 0.66)):
+        vals[k] = v
+    tc = 0.6
+    gw = 0.86
+    gh = tray(ax, x, yb, gw, {}, fill=vals)
+    for (c, r), v in vals.items():
+        cw = gw / NC
+        ax.text(x + (c + .5) * cw, yb + (NR - 1 - r + .5) * cw, f"{v:.2f}"[1:], fontsize=7, ha="center",
+                va="center", color="black" if v >= 0.5 else "white", zorder=10)
+    label(ax, x + gw / 2, yb - 0.05, "compartment scores", "$g_i(e)$ = max of $S_i$ in $e$")
+    arrow(ax, (x + gw + 0.03, yb + gh / 2), (x + gw + 0.13, yb + gh / 2))
+    # gate diamond
+    x = x + gw + 0.15
+    dw, dh = 0.5, 0.42
+    cy = yb + gh / 2
+    ax.add_patch(Polygon([(x, cy), (x + dw / 2, cy + dh / 2), (x + dw, cy), (x + dw / 2, cy - dh / 2)],
+                         closed=True, fc="#fdecea", ec=C["alarm"], lw=1.0, zorder=3))
+    ax.text(x + dw / 2, cy, r"max $S_i$" + "\n" + r"$>t_s$?", fontsize=7, ha="center", va="center",
+            linespacing=1.0, zorder=4)
+    arrow(ax, (x + dw / 2, cy - dh / 2), (x + dw / 2, yb - 0.3), color=C["alarm"])
+    ax.text(x + dw / 2 + 0.04, cy - dh / 2 - 0.02, "no", fontsize=7, color=C["alarm"], va="top")
+    ax.text(x + dw / 2, yb - 0.33, "$Q_i=\\varnothing$: tray not\nopened, targets missed", fontsize=7,
+            ha="center", va="top", color=C["alarm"], linespacing=1.0)
+    arrow(ax, (x + dw, cy), (x + dw + 0.15, cy), color=C["alarm"])
+    ax.text(x + dw + 0.02, cy + 0.03, "yes", fontsize=7, color=C["alarm"], va="bottom")
+    # queue
+    x = x + dw + 0.17
+    out = {vac: (C["target"], (0, (2.2, 1.4))), rec: (C["target"], "-")}
+    for k, v in vals.items():
+        if k not in out and v >= tc:
+            out[k] = (C["queued"], "-")
+    tray(ax, x, yb, gw, {}, fill={k: 0.92 for k in vals}, outline=out)
+    label(ax, x + gw / 2, yb - 0.05, r"queue $Q_i=\{e: g_i(e)\geq t_c\}$")
+    ax.text(x + gw / 2, yb - 0.21, "$R$ = 2/2,  $C$ = 3 untouched", fontsize=7.5, ha="center", va="top",
+            color=C["queued"])
+    # dashed calibration arrows
+    arrow(ax, (5.0, 1.53), (x - dw / 2 - 0.15, cy + dh / 2 + 0.02), ls=(0, (3, 2)), color=C["calib"])
+    arrow(ax, (6.2, 1.53), (x + gw / 2, yb + gh + 0.03), ls=(0, (3, 2)), color=C["calib"])
     style.save(fig, "pipeline")
 
 

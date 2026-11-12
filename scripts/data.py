@@ -148,3 +148,21 @@ PHOTO_ROWS = [
     dict(title="First alerted sham", src=(2, 2), dst=(1, 2),
          score=(0.292, 0.278, 0.999), alert=(True, True, True)),
 ]
+
+# Class-wide seed 2 at the three cutoffs (tables/inspection_extracted.tex and
+# tables/other_queues.tex) is already in INSPECTION_EXTRACTED / OPERATING_EXTRACTED.
+# Scene cutoffs t_s (tables/thresholds.tex, released): oracle 0.15802, extracted 0.17097.
+T_S = {"oracle": 0.15802, "extracted": 0.17097}
+
+# Graph readouts incl. typed distance, GlaS original-length tier (tables/graph_main.tex).
+GRAPH_RANK = {
+    "Geometry only":           (64.0, 57.1, 70.6),
+    "Typed distance":          (74.9, 70.8, 78.9),
+    "Distance + local spacing": (90.2, 88.4, 91.7),
+    "Pair MLP":                (91.5, 89.1, 93.6),
+    "Masked GNN":              (82.5, 78.3, 86.5),
+}
+GRAPH_RESPONSE = {   # None = 50 by construction (probability cannot change)
+    "Geometry only": None, "Typed distance": None, "Distance + local spacing": None,
+    "Pair MLP": None, "Masked GNN": (98.5, 97.6, 99.3),
+}

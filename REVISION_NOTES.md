@@ -49,6 +49,46 @@ The original figures and their SVGs are kept in `figures/orig/`.
   - For print, export a PNG at 300 dpi or more as `figures/biorender/pipeline.png` (same canvas), switch `icon()` to it, and rebuild.
   - The caption says "Icons created in BioRender". Add the named citation only at camera-ready.
 
+## Figure-clarity pass (independent review + BioRender)
+A fresh reviewer agent, not involved in making the figures, reviewed every figure as a PNG and at print size. Its report is in `review/figure_review_v1.md`. Changes made in response:
+- **One colour system across all figures** (`scripts/style.py`):
+  - Models: released grey, class-wide purple, footprint green. Seed 2 is shown hollow or dashed.
+  - Edit types: source grey, sham blue, fault vermilion, vacancy ochre.
+  - Overlays only: cyan = target, orange = queued untouched.
+  - All score maps are greyscale.
+- **Text size and wording:** no text below 7 pt; `style.save` now fails the build otherwise. Figures say "compartment", "alarm" and "Fault", matching the text.
+- **Fig. 1:**
+  - (a) is now BioRender art: four matched trays, each rotated to the true 5×3 layout.
+  - (b) shows the training mask drawn on the *same* edited tray, then greyscale compartment scores with per-compartment outlines, then "15 of 15" vs. "2 of 15 compartments opened".
+  - The class-wide mask now shows the fault layout, and the vacated spot is marked in both masks.
+- **Fig. 2:** rebuilt as two lanes.
+  - Training lane: only the mask y changes.
+  - Test lane: one running example (photo → part map → composition branch → compartment scores → alarm decision → queue).
+  - The alarm now has an explicit "no → Q = ∅" branch, the oracle path is drawn as a dashed bypass, and the development-calibration box shows where t_s and t_c come from.
+  - The illustrative values match the worked example under Eq. 3 (R = 2/2, C = 3). The photo-real inspector was removed.
+- **Fig. 3:**
+  - The moved pin's compartment on source and sham is now marked with a white dashed box; cyan is reserved for targets.
+  - The right column shows greyscale per-compartment |ΔS| values with a colour bar, and the header states t_s.
+- **Fig. 4:** palette fixed, legend moved above the plot, y-axis relabelled as a share, panel letters added.
+- **Fig. 5:**
+  - (a,b) are greyscale maps with each compartment's maximum printed.
+  - (c) legend areas are now taken from Tab. 1 (the 89.7 vs. 89.6 mismatch is fixed).
+  - (d) has a broken x-axis, the cutoff is encoded by marker shape, class-wide seed 2 is added, and the connecting lines are gone.
+- **Fig. 6:** panel letters, group headers, the primary contrast in bold, seed 2 hollow, "better" directions and the † for the failed control.
+- **Fig. 7:** shared legend, 10% cutoff line, "n =" in the titles, full branch names, and labels clear of the error bars.
+- **Fig. 8:** adds the typed-distance row, so the text's "+15.3" is now visible (74.9 → 90.2). Values that are 50 by construction are drawn hollow and labelled.
+- **Supplement screw figure:** colour-coded titles replaced by group headers.
+
+**How the score values in Figs. 3 and 5 were obtained:** the draft's colour-mapped rasters were inverted back to scores (median error about one grey level). The recovered values agree with the cutoffs: released untouched compartments are at least 0.73, above t_c = 0.588; footprint targets are 0.25 and 0.58, above 0.229, and every other compartment is below it. Replace these with the analysis output when you can.
+
+**BioRender (prompts sent with sample sheets of real photos plus the current sketches, in `figures/biorender/ref/`):**
+- Full pipeline redraw: **rejected**. It drew 4×3 and 3×4 trays across two rows, despite "exactly 5×3" in the prompt. Kept as `pipeline_v2_rejected.jpg`.
+- Matched-edit trays: used in Fig. 1(a), after a 90° rotation. https://app.biorender.com/illustrations/89279b87d8b90f86021b6c98
+- Pushpin sprite: used in the code-drawn trays. https://app.biorender.com/illustrations/34d915d6560d8c96482046fe
+- The reference sheets had to be public (raw GitHub URLs) for BioRender to read them.
+
+**Still needs your data:** the analysis outputs to regenerate the Fig. 4 and Fig. 5c curves and the Fig. 3 and 5 score maps (currently recovered from the draft's figures), and full-resolution photos.
+
 ## Open items for the group
 1. **Number conflict:** for the GlaS local-spacing gain, the draft text gave 15.3 [11.0, 20.3]. `tables/switches.tex` (original-length tier) gives +15.3 [10.9, 20.1]. The main text now uses the table. Please confirm.
 2. **Confirm the recovered values** listed above.

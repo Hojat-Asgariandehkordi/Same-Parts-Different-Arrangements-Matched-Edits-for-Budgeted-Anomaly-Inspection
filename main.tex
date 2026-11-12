@@ -27,9 +27,7 @@
 \vspace{-2.2em}
 \includegraphics[width=\linewidth]{teaser.pdf}
 \captionsetup{hypcap=false}
-\captionof{figure}{\textbf{Where should an inspector look after an alarm?}
-(a)~From one held-out photo of a pushpin tray (rule: one pin per compartment) we build matched edits. The same pin moves the same distance, either within its own compartment (valid) or into an occupied neighbour (a fault). A vacancy-only edit removes the pin. The fault fixes the two compartments that need attention (cyan).
-(b)~A detector trained to mark \emph{every} pin of an inserted class lights up the whole tray. At a cutoff that finds 95\% of the target compartments it also queues most untouched ones. Training the same head to mark only the pasted pin keeps the alarm and empties the rest of the queue. Schematic; measured values are in \cref{sec:results}.}
+\captionof{figure}{\textbf{Where should an inspector look after an alarm?} (a)~Matched edits of one tray (rule: one pin per compartment): the same pin moves the same distance within its compartment (valid) or into an occupied neighbour (fault). Cyan: compartments to check (dashed: vacated; solid: recipient). (b)~Schematic: marking every pin of the inserted class in training makes the whole tray score high, so all 15 compartments are opened; marking only the pasted pin opens just the 2 targets. Measured at 95\% recall: 11.07 vs.\ 0.20--0.45 untouched compartments (\cref{tab:inspection}). Tray art created in BioRender.}
 \label{fig:teaser}
 \captionsetup{hypcap=true}
 \end{strip}
@@ -75,7 +73,7 @@ We set alarms with split-conformal cutoffs from normal photographs~\cite{bates20
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{pipeline.pdf}
-\caption{\textbf{Pipeline and the inspection decision.} A photo is turned into a six-class part map, either by a U-Net trained on normal photos (\emph{extracted}) or by moving the released label directly (\emph{oracle}). The SALAD composition branch returns a score map. If the scene alarm fires, every compartment whose maximum score reaches $t_c$ is queued for the inspector. We change only the training target of the composition branch (green). Both cutoffs are fixed on development photos (blue). Icons created in BioRender.}
+\caption{\textbf{Pipeline.} Training (green) changes only the target mask. At test, a part map comes from a U-Net (\emph{extracted}) or from the edited label map (\emph{oracle}); the scene alarm ($t_s$) and the compartment cutoff ($t_c$) are fixed on development data (blue). The values are illustrative and match the example under \cref{eq:rc} ($R=2/2$, $C=3$). Network icons created in BioRender.}
 \label{fig:pipeline}
 \end{figure*}
 
@@ -101,7 +99,7 @@ We score each variant through two interfaces with the same detector weights. The
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{matched_photos.pdf}
-\caption{\textbf{Real matched edits.} Top: the photo with the median released fault-minus-sham score difference. Bottom: the first sham (in hash order) that raises an alarm; its source does too. Solid cyan marks the moved pin's compartment (sham) or the recipient (fault); dashed cyan marks the vacated compartment. The scene score is the maximum of the released composition map on oracle labels. The right column shows the per-compartment maximum of $|S^{\text{fault}}-S^{\text{source}}|$. In the bottom row every compartment changes, not only the two targets. Photos: MVTec LOCO AD, CC BY-NC-SA 4.0.}
+\caption{\textbf{Real matched edits} (oracle maps). Top: median released fault-minus-sham difference. Bottom: the first sham that raises an alarm; its source does too. White dashed: compartment of the moved pin; cyan: fault targets. Right: per-compartment $|S^{\text{fault}}-S^{\text{source}}|$; in the bottom row every compartment changes. Photos: MVTec LOCO AD, CC BY-NC-SA 4.0.}
 \label{fig:photos}
 \end{figure*}
 
@@ -220,7 +218,7 @@ Footprint, seed 2      & 20 & 74.6 & 2.28  & 96.0 & \textbf{0.45} & 89.6 \\
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{collateral.pdf}
-\caption{\textbf{The released map responds across the tray.} Share of the 13 untouched compartments in which at least one pixel's score changes, relative to the source, by more than the cutoff on the $x$-axis. Shading: 95\% intervals over photos. The dotted line marks the 0.5 summary used in the text. Curves recovered from the analysis figure of the draft.}
+\caption{\textbf{The released map responds across the tray.} Share of the 13 untouched compartments with a pixel whose score changes by more than the cutoff, with 95\% intervals over photos.}
 \label{fig:collateral}
 \end{figure}
 
@@ -231,14 +229,14 @@ Footprint, seed 2      & 20 & 74.6 & 2.28  & 96.0 & \textbf{0.45} & 89.6 \\
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{guidance_maps.pdf}
-\caption{\textbf{Footprint supervision empties the queue.} (a,b)~Extracted maps of the fault with the median released fault-minus-sham difference. Cyan: targets; orange: untouched compartments at or above the locked 95\% cutoff. (c)~Region curve pooling fault, sham and source compartments at common thresholds; the legend gives the area up to a 5\% false-compartment rate (curves recovered from the draft's figure). (d)~Achieved recall against cost at the three development cutoffs (fixed cost, 95\% and 98\% recall). The footprint heads sit in the top-left corner; the released and class-wide maps need nearly all 13 untouched compartments to reach high recall.}
+\caption{\textbf{Footprint supervision empties the queue.} (a,b)~Extracted maps of the median fault (greyscale) with each compartment's maximum; cyan: targets, orange: untouched compartments at or above the locked 95\% cutoff $t_c$. (c)~Compartment ROC from a test sweep, with the area up to 5\% from \cref{tab:inspection} (class-wide curves, area 39.3--39.4, omitted). (d)~Recall against cost at the fixed-cost (square), 95\% (circle) and 98\% (triangle) development cutoffs; hollow: seed~2; the axis is broken between 1 and 11.}
 \label{fig:maps}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{paired_forest.pdf}
-\caption{\textbf{Paired differences at the locked cutoffs.} Footprint minus each comparator, by seed and interface. Dotted lines mark the pre-specified thresholds: a useful reduction of at least one compartment, at most 5 points of lost recall, and at most 5 points of extra sham alarms. The last two rows use the upstream-only continuation (\cref{sec:upstream}). Values are listed in Tabs.~3 and 8 of the supplement.}
+\caption{\textbf{Paired differences at the locked cutoffs}, footprint minus each comparator, with 95\% intervals; hollow: seed~2. Bold: the pre-specified primary contrast. Dotted: pre-specified thresholds. $\dagger$: this seed's control fails the competence check (\cref{sec:upstream}). Values: supplement Tabs.~3 and 8.}
 \label{fig:forest}
 \end{figure*}
 
@@ -247,6 +245,20 @@ Footprint, seed 2      & 20 & 74.6 & 2.28  & 96.0 & \textbf{0.45} & 89.6 \\
 \paragraph{What does not improve.} Two results are seed-dependent. First, sham alarms: seed~1 raises 9 against 7 for the release ($+1.4$ points [$-3.6$, 7.2]), but seed~2 raises 20 ($+9.4$ [2.2, 16.7]). Against the class-wide control, the pre-specified comparison, neither seed exceeds the 5-point guard ($-7.2$ and $-1.4$). Second, the top-two rate rises to 87.7\% in seed~1 but falls to 74.6\% in seed~2, below the release.
 
 \paragraph{The class-wide control.} The class-wide fine-tunes keep every alarm but light up the whole tray: all 13 untouched compartments are queued and the top-two rate is 0. Their development compartment AUROC is about 48\%, so they fail the competence check of \cref{sec:protocol}. The comparison with the class-wide arm shows that, within this recipe, the target alone produces the difference. The comparison with the release measures the gain of the whole adaptation, which also adds rule-aware edits, and cannot be credited to the mask alone.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{branches.pdf}
+\caption{\textbf{Which SALAD branch separates a fault from a valid edit?} (a)~Juice edit: a same-type (valid) or other-type (fault) icon, pasted identically. (b,c)~Scenes alarmed per branch at its own 10\% normal cutoff (dashed); on pushpin composites, global RGB and fusion also alarm on most untouched sources. (d)~Juice fault-minus-sham alarm gap, 95\% intervals. Photos: MVTec LOCO AD, CC BY-NC-SA 4.0.}
+\label{fig:branches}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{graph_audit.pdf}
+\caption{\textbf{Graph check on 78 GlaS fields (12 donors).} (a)~Edited-graph AUROC; local spacing adds 15.3 points to typed distance. (b)~AUROC of the change between matched graphs; hollow: 50 by construction. (c)~Top-four recovery of the masked GNN as fitted, with degree inputs fixed, and refit with mean aggregation. Donor-paired 95\% intervals.}
+\label{fig:graph}
+\end{figure*}
 
 \subsection{A continuation closer to the released recipe}
 \label{sec:upstream}
@@ -262,12 +274,7 @@ SALAD fuses three branches: a local RGB appearance map, the composition map stud
 
 The two rules thus favour different branches. Composition evidence decides placement in a tray. Global appearance decides a label--liquid match that the part map cannot express. Matched shams make this choice measurable. The pushpin target adaptation itself is evaluated only on pushpins.
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\linewidth]{branches.pdf}
-\caption{\textbf{Which SALAD branch separates a fault from a valid edit?} (a)~Juice edit: a same-type icon (valid sham) or a different type (fault), pasted with the same geometry and blend. (b,c)~Share of scenes alarmed by each branch at its own 10\% normal cutoff, on 138 extracted pushpin photos and 89 juice bottles. (d)~Juice fault-minus-sham alarm gap with 95\% intervals. Photos: MVTec LOCO AD, CC BY-NC-SA 4.0.}
-\label{fig:branches}
-\end{figure*}
+
 
 \section{A graph check on response evidence}
 \label{sec:graph}
@@ -279,25 +286,15 @@ The same matched logic applies to graphs of parts. We build gland graphs from Gl
 
 The masked GNN recovers 87.5\% of switched pairs in its top four by absolute change in probability (\cref{fig:graph}c). Holding its degree inputs fixed reduces this to 33.7\%. We also refit the network with mean neighbourhood aggregation and no degree inputs on the same four GlaS folds. The refit reaches 95.7--98.2\% development AUROC on normal links, but its top-four recovery falls to 46.6\%, 40.9 points lower [32.8, 49.8]. Mean aggregation still allows indirect cues such as an empty neighbourhood. The clamp and the refit point to a degree pathway, so recovering known graph edits should not be read as validity.
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\linewidth]{graph_audit.pdf}
-\caption{\textbf{Graph check on 78 GlaS fields from 12 donors.} (a)~Target AUROC of four readouts in the edited graph. (b)~AUROC when ranking by the absolute change in score between matched graphs; models whose probability cannot change sit at 50 by construction. (c)~Top-four recovery of the masked GNN's response: as fitted, with degree inputs held at their source values, and after refitting with mean aggregation. Intervals are donor-paired 95\% bootstrap intervals. HVSMR results are in the supplement.}
-\label{fig:graph}
-\end{figure*}
 
-\section{Discussion and limitations}
+
+\section{Limitations}
 \label{sec:discussion}
-\paragraph{Detection is not guidance.} The released composition branch is an excellent detector on these edits and ranks the targets well. A calibrated queue nevertheless sends the inspector to almost every compartment. Image AUROC, top-$k$ rates and region areas do not show this. The recall--cost pair at a development cutoff does.
-
-\paragraph{Targets shape maps.} Marking every part of the inserted class tells the network that an extra pin makes all pins anomalous. In a tray that answer is unhelpful. Marking only the pasted part keeps the alarm and localizes it. Which policy is right depends on whether parts are interchangeable, as in a bag of screws, or tied to locations, as in a tray. A detector deployed under a known rule should choose the target accordingly.
-
-\paragraph{Limitations.}
 The strongest result concerns two compartments in a registered tray. Both seeds improve the calibrated high-recall queue. The best-two ranking and sham specificity, however, depend on the seed. Training used edits built from a known rule, so the gain describes that setting. Our interventions are synthetic composites on held-out photos. They match pixels changed, cutout and displacement, but they are not physical rearrangements, and physical tray identities are unavailable. Intervals condition on the fitted heads and cutoffs. The class-wide rule-aware controls fail the competence check, so mechanism claims rest on the upstream continuation, where one seed passes. The juice test covers one further rule and the graph check one masking design. Native LOCO results and a single exploratory cardiac query are in the supplement.
 
 \section{Conclusion}
 \label{sec:conclusion}
-Matched edits turn a logical anomaly benchmark into a measurement of inspection effort. With the same parts in valid and invalid arrangements, we found that a detector which catches every fault can still send the inspector to 11 of 13 untouched compartments at high recall. A one-line change to what training marks as anomalous reduces this to under half a compartment. Valid shams also reveal which branch carries the evidence under a new rule, and expose a degree pathway in a masked graph model. We hope that reporting recall together with inspection cost, measured against matched valid edits, becomes standard practice for logical anomaly detection.
+Matched edits turn a logical anomaly benchmark into a measurement of inspection effort. A detector that catches every fault and ranks its targets well can still send the inspector to 11 of 13 untouched compartments at high recall; image AUROC, top-$k$ rates and region areas do not show this, while the recall--cost pair at a development cutoff does. The training target is the lever: marking every part of the inserted class teaches that one extra pin makes all pins anomalous, which suits interchangeable parts in a bag but not parts tied to locations in a tray. Marking only the pasted part reduces the cost to under half a compartment. Valid shams also reveal which branch carries the evidence under a new rule, and expose a degree pathway in a masked graph model. We hope that reporting recall together with inspection cost, against matched valid edits, becomes standard practice for logical anomaly detection.
 
 \section*{LLM Usage Statement}
 OpenAI Codex was used to develop and implement the revision experiments, run and check the code, inspect public sources and data provenance, produce figures and tables from saved outputs, and draft and edit the main text and supplementary material. Anthropic Claude was used to restructure and edit the text and to redraw the figures from the recorded outputs. Figures use deterministic plotting and the documented photograph composites. The authors take full responsibility for the content.

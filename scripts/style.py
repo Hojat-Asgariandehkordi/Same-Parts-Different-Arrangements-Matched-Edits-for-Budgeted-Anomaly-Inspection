@@ -19,23 +19,32 @@ GYRE = Path("/usr/share/texmf/fonts/opentype/public/tex-gyre")
 COL = 3.25
 FULL = 6.875
 
-# one colour per policy, used in every figure
+# One system for every figure (see REVISION_NOTES.md):
+#  models     released grey, class-wide purple, footprint green;
+#             seed 1 = filled marker / solid line, seed 2 = hollow / dashed
+#  edit types source light grey, sham blue, fault vermilion, vacancy ochre
+#  overlays   target cyan (solid recipient, dashed vacated), queued orange;
+#             reserved: never used for data
+#  score maps greyscale (black = 0, white = 1)
 C = {
-    "released": "#3b5b92",   # navy
-    "released99": "#7f93b8", # light navy
-    "classwide": "#c0603a",  # orange
-    "footprint": "#1b8a6b",  # teal
-    "footprint2": "#6cc3a6", # light teal
-    "fault": "#c0603a",
-    "vacancy": "#3b5b92",
-    "sham": "#1b8a6b",
-    "source": "#8c8c8c",
-    "target": "#22b8d6",     # cyan boxes
-    "queued": "#f29e38",     # orange boxes
+    "released": "#4d4d4d",
+    "classwide": "#7b5ea7",
+    "footprint": "#1b8a6b",
+    "upstream": "#b07aa1",
+    "source": "#a0a0a0",
+    "sham": "#3d7dc4",
+    "fault": "#d55e00",
+    "vacancy": "#b58a1a",
+    "target": "#00b4d8",
+    "queued": "#f28e2b",
+    "train": "#1b8a6b",      # "what we change"
+    "calib": "#3d5a99",      # "fixed on development data"
+    "alarm": "#c0392b",
     "grey": "#555555",
     "light": "#d9d9d9",
+    "pin": "#e8c547",
 }
-
+SCORE_CMAP = "gray"
 
 def _otf_to_ttf(src, dst):
     from fontTools.ttLib import TTFont
@@ -91,9 +100,10 @@ def setup():
         "font.size": 8,
         "axes.titlesize": 8.5,
         "axes.labelsize": 8,
-        "xtick.labelsize": 7,
-        "ytick.labelsize": 7,
-        "legend.fontsize": 7,
+        "xtick.labelsize": 7.5,
+        "ytick.labelsize": 7.5,
+        "legend.fontsize": 7.5,
+        "mathtext.default": "it",
         "axes.spines.top": False,
         "axes.spines.right": False,
         "axes.linewidth": 0.6,
@@ -106,14 +116,47 @@ def setup():
     })
 
 
-def errbar(ax, x, y, lo, hi, color, horizontal=False, ms=4.5, marker="o", **kw):
-    """Point with a thick, capped 95% interval."""
+def errbar(ax, x, y, lo, hi, color, horizontal=False, ms=4.5, marker="o", hollow=False, **kw):
+    """Point with a thick, capped 95% interval; hollow=True for seed 2 / flagged rows."""
+    mfc = "white" if hollow else color
     if horizontal:
-        ax.errorbar(y, x, xerr=[[y - lo], [hi - y]], fmt=marker, color=color, ms=ms,
+        ax.errorbar(y, x, xerr=[[y - lo], [hi - y]], fmt=marker, color=color, ms=ms, mfc=mfc,
                     elinewidth=1.4, capsize=3, capthick=1.4, **kw)
     else:
-        ax.errorbar(x, y, yerr=[[y - lo], [hi - y]], fmt=marker, color=color, ms=ms,
+        ax.errorbar(x, y, yerr=[[y - lo], [hi - y]], fmt=marker, color=color, ms=ms, mfc=mfc,
                     elinewidth=1.4, capsize=3, capthick=1.4, **kw)
+
+
+def sprite(name):
+    """RGBA sprite cut from the BioRender icon sheet (near-white made transparent)."""
+    import numpy as np
+    from PIL import Image
+    boxes = {"pin": (355, 40, 668, 158)}
+    im = Image.open(FIG / "biorender" / "sprites.jpg").convert("RGB").crop(boxes[name])
+    a = np.asarray(im).astype(float)
+    alpha = np.clip((250 - a.min(axis=2)) * 8, 0, 255).astype(np.uint8)
+    return np.dstack([a.astype(np.uint8), alpha])
+
+
+def score_map_values(asset, kind):
+    """Scores recovered from a draft raster by inverting its colour map (median error ~1 grey level).
+
+    kind = "draft" uses the draft's colour bar (guidance_maps_2), "magma" matplotlib's magma.
+    """
+    import numpy as np
+    from PIL import Image
+    from matplotlib import colormaps
+    im = np.asarray(Image.open(FIG / "assets" / f"{asset}.png").convert("RGB")).astype(float)
+    if kind == "draft":
+        lut = np.asarray(Image.open(FIG / "assets" / "guidance_maps_2.png").convert("RGB"))[5] / 255.0
+    else:
+        lut = colormaps["magma"](np.linspace(0, 1, 256))[:, :3]
+    flat = im.reshape(-1, 3)
+    out = np.empty(len(flat))
+    for i in range(0, len(flat), 4096):
+        d = ((flat[i:i + 4096, None, :] - lut[None] * 255) ** 2).sum(-1)
+        out[i:i + 4096] = d.argmin(1) / (len(lut) - 1)
+    return out.reshape(im.shape[:2])
 
 
 def panel(ax, letter, x=-0.02, y=1.02):
@@ -121,7 +164,17 @@ def panel(ax, letter, x=-0.02, y=1.02):
             fontsize=9, ha="right", va="bottom")
 
 
-def save(fig, name):
+def checkmin(fig, minimum=7.0):
+    """Fail loudly if any visible text in the figure is below `minimum` pt."""
+    from matplotlib.text import Text
+    small = [(t.get_text(), round(t.get_fontsize(), 1)) for t in fig.findobj(Text)
+             if t.get_text().strip() and t.get_visible() and t.get_fontsize() < minimum - 1e-6]
+    if small:
+        raise SystemExit(f"text below {minimum} pt: {small[:8]}")
+
+
+def save(fig, name, minimum=7.0):
+    checkmin(fig, minimum)
     out = FIG / f"{name}.pdf"
     fig.savefig(out)
     plt.close(fig)
