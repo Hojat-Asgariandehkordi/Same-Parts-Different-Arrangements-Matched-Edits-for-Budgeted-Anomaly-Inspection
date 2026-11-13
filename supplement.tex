@@ -143,7 +143,7 @@ The rule-aware class-wide heads detect all faults and vacancies but fail the loc
 
 \begin{table*}[t]
 \centering
-\caption{\textbf{Development controls and inspection thresholds.} Cell AUROC is measured on matched development faults. $t_s$ is the scene threshold. $t_{95}$ and $t_{98}$ use 95\% and 98\% target recall, and $t_{\rm budget}$ uses 0.5 untouched cells. Numbers are rounded for display. All decisions use full-precision thresholds.}
+\caption{\textbf{Development controls and inspection thresholds.} Compartment AUROC is measured on matched development faults. $t_s$ is the scene threshold. $t_{95}$ and $t_{98}$ use 95\% and 98\% target recall, and $t_{\rm budget}$ uses 0.5 untouched compartments. Numbers are rounded for display. All decisions use full-precision thresholds.}
 \label{tab:thresholds_v3}
 \scriptsize
 \setlength{\tabcolsep}{3.5pt}
@@ -160,7 +160,7 @@ The rule-aware class-wide heads detect all faults and vacancies but fail the loc
 
 \begin{table*}[t]
 \centering
-\caption{\textbf{Collateral change after rule-aware adaptation.} Cells and pixels report percentages with absolute change $\geq0.5$. Max and quantiles are mean within-cell statistics in sigmoid units. We use the same 13 untouched fault cells for each variant.}
+\caption{\textbf{Collateral change after rule-aware adaptation.} Compartments and pixels report percentages with absolute change $\geq0.5$. Max and quantiles are mean within-compartment statistics in sigmoid units. We use the same 13 untouched fault compartments for each variant.}
 \label{tab:changes_v3}
 \scriptsize
 \setlength{\tabcolsep}{4pt}
@@ -292,9 +292,9 @@ The RGB-only extractor is a two-level U-Net with widths 16, 32 and 64, SiLU, gro
 
 
 \paragraph{Reference regions and scene operation.}
-The two affected cells are a rule-based coarse spatial reference. The vacant and occupied cells need no pixel-level anomaly outline. For each cell we take the maximum of either the edited output or the absolute change from source. Even the change-based cell rank is 98.4\% on oracle maps while 90.3\% of untouched cells have a large absolute change. The matched deletion, which leaves the same vacancy, keeps changes above $0.5$ to 2.9\% of those same untouched cells. The paired difference is 87.4 points [82.4, 91.9] for oracle maps and 86.6 [81.4, 91.2] after extraction. The full threshold curve is Fig.~4 of the main paper. These are changes in the spatial output, whereas scene-level maxima and cutoff decisions are a separate measurement.
+The two affected compartments are a rule-based coarse spatial reference. The vacant and occupied compartments need no pixel-level anomaly outline. For each cell we take the maximum of either the edited output or the absolute change from source. Even the change-based cell rank is 98.4\% on oracle maps while 90.3\% of untouched cells have a large absolute change. The matched deletion, which leaves the same vacancy, keeps changes above $0.5$ to 2.9\% of those same untouched cells. The paired difference is 87.4 points [82.4, 91.9] for oracle maps and 86.6 [81.4, 91.2] after extraction. The full threshold curve is Fig.~4 of the main paper. These are changes in the spatial output, whereas scene-level maxima and cutoff decisions are a separate measurement.
 
-The image score is the official maximum sigmoid output. The validation IQRs are 0.00974 (oracle) and 0.01060 (extracted). The raw cutoffs are 0.15802 and 0.17097. The rule comparator sums the absolute deviation from one pin per cell and adds retained out-of-grid pins. Its cutoff is zero on both paths. The comparator uses the same labels and the same validation rule. On re-extracted maps it yields zero sham alarms (exact 95\% upper bound 2.6\%), while retaining all 138 fault alarms. \Cref{tab:halves} reports the held-out halves and the paired effect. Figure selection uses the case closest to the median oracle fault-minus-sham score. There were zero missed faults. The second row uses the first hash-ordered alarmed sham, whose source also alarms.
+The image score is the official maximum sigmoid output. The validation IQRs are 0.00974 (oracle) and 0.01060 (extracted). The raw cutoffs are 0.15802 and 0.17097. The rule comparator sums the absolute deviation from one pin per compartment and adds retained out-of-grid pins. Its cutoff is zero on both paths. The comparator uses the same labels and the same validation rule. On re-extracted maps it yields zero sham alarms (exact 95\% upper bound 2.6\%), while retaining all 138 fault alarms. \Cref{tab:halves} reports the held-out halves and the paired effect. Figure selection uses the case closest to the median oracle fault-minus-sham score. There were zero missed faults. The second row uses the first hash-ordered alarmed sham, whose source also alarms.
 
 \begin{table*}[t]
 \centering

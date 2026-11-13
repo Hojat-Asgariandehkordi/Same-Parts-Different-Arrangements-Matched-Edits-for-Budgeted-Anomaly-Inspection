@@ -150,13 +150,6 @@ def guidance():
         v = style.score_map_values(asset, "draft")
         Hh, Ww = v.shape
         ax.imshow(v, cmap=GREY, vmin=0, vmax=1, extent=(0, 1, 1, 0), interpolation="nearest")
-        for r in range(3):
-            for c in range(5):
-                x0, x1, y0, y1 = D.CELL_X[c], D.CELL_X[c + 1], D.CELL_Y[r], D.CELL_Y[r + 1]
-                m = v[int(y0 * Hh):int(y1 * Hh), int(x0 * Ww):int(x1 * Ww)].max()
-                ax.text(x0 + 0.015, y1 - 0.015, f"{m:.2f}", fontsize=7, ha="left", va="bottom",
-                        color="black", zorder=7,
-                        bbox=dict(fc="white", ec="none", alpha=0.75, pad=0.3))
         for c, r in queued:
             cell_box(ax, D.CELL_X, D.CELL_Y, c, r, C["queued"], inset=0.012)
         for c, r in D.MAP_TARGETS:
@@ -230,15 +223,16 @@ def guidance():
     axl.set_title("Recall vs. cost, three cutoffs", fontsize=8, x=0.68)
     axl.text(0.02, 95.8, "95%", fontsize=7, color="#888888")
     style.panel(axl, "d", x=-0.2, y=1.04)
-    hs = [Line2D([], [], color=C["released"], marker="o", ls="", ms=4.5, label="released"),
-          Line2D([], [], color=C["classwide"], marker="o", ls="", ms=4.5, label="class-wide"),
-          Line2D([], [], color=C["footprint"], marker="o", ls="", ms=4.5, label="footprint"),
+    hs = [Patch(color=C["released"], label="released"),
+          Patch(color=C["classwide"], label="class-wide"),
+          Patch(color=C["footprint"], label="footprint"),
           Line2D([], [], color="#555555", marker="o", mfc="white", ls="", ms=4.5, label="hollow: seed 2"),
           Line2D([], [], color="#555555", marker="s", ls="", ms=4.5, label="fixed-cost cutoff"),
           Line2D([], [], color="#555555", marker="o", ls="", ms=4.5, label="95% cutoff"),
           Line2D([], [], color="#555555", marker="^", ls="", ms=4.5, label="98% cutoff")]
     axl.legend(handles=hs, loc="upper left", bbox_to_anchor=(0.46, 0.8), frameon=False, fontsize=7,
-               ncol=1, handletextpad=0.2, labelspacing=0.18, borderaxespad=0.1)
+               ncol=1, handletextpad=0.4, labelspacing=0.18, borderaxespad=0.1,
+               handlelength=0.9, handleheight=0.6)
     style.save(fig, "guidance_maps")
 
 

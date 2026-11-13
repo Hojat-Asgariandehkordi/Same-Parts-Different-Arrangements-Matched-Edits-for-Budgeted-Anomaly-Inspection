@@ -143,7 +143,8 @@ def teaser():
         th = tw * im.shape[0] / im.shape[1]
         ax.imshow(im, extent=(bx, bx + tw, by, by + th), zorder=2, interpolation="lanczos")
         ax.text(bx, by - 0.04, t1, fontsize=8, fontweight="bold", color=col, va="top")
-        ax.text(bx, by - 0.2, f"{t2}; {t3}", fontsize=7.5, va="top", color="#333333")
+        ax.text(bx, by - 0.2, t2 if t3 == "no target" else f"{t2}; {t3}", fontsize=7.5, va="top",
+                color="#333333")
     ax.plot([3.42, 3.42], [0.1, H - 0.1], color="#cccccc", lw=0.6)
 
     # (b) what the inspector receives ---------------------------------------
@@ -174,6 +175,8 @@ def teaser():
             for r in range(NR):
                 vals[(c, r)] = (0.66 + 0.18 * ((c * 7 + r * 3) % 5) / 4) if broad else 0.04 + 0.02 * ((c + r) % 3)
         vals[VAC], vals[REC] = (0.97, 0.94) if broad else (0.86, 0.72)
+        if broad:   # two untouched compartments stay below t_c: 11 of 13 queued, as measured (11.07)
+            vals[(0, 2)], vals[(4, 0)] = 0.45, 0.52
         tc = 0.6
         out = dict(targets)
         for k, v in vals.items():

@@ -23,7 +23,7 @@ FULL = 6.875
 #  models     released grey, class-wide purple, footprint green;
 #             seed 1 = filled marker / solid line, seed 2 = hollow / dashed
 #  edit types source light grey, sham blue, fault vermilion, vacancy ochre
-#  overlays   target cyan (solid recipient, dashed vacated), queued orange;
+#  overlays   target cyan (solid recipient, dashed vacated), queued pink;
 #             reserved: never used for data
 #  score maps greyscale (black = 0, white = 1)
 C = {
@@ -36,7 +36,7 @@ C = {
     "fault": "#d55e00",
     "vacancy": "#b58a1a",
     "target": "#00b4d8",
-    "queued": "#f28e2b",
+    "queued": "#e7298a",
     "train": "#1b8a6b",      # "what we change"
     "calib": "#3d5a99",      # "fixed on development data"
     "alarm": "#c0392b",
