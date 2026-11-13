@@ -56,6 +56,7 @@
 - **Fig. 4:** panel letters no longer collide with the 100% tick.
 - **Fig. 8:** neutral grey and black; red no longer takes on a new meaning.
 - **Fig. 1(a):** heading is now "illustration". BioRender's curved sham arrow is still there; the motion is a translation.
+- **LLM statement:** shortened, and a conclusion sentence that repeated the contributions was removed. Everything through the statement ends on page 8; the references start on page 9.
 
 ## Where this stops and why
 All remaining major objections need new evidence, not writing (see the list above). Under the authors' instruction not to change the content, this is the strongest version the existing evidence supports. The internal target of 7.5 is not met. The obstacle is evidence breadth (one category, synthetic edits, two seeds, a failed primary control), not presentation.
