@@ -129,7 +129,7 @@ def collateral():
         ax.set_yticklabels(["0", "50%", "100%"])
         ax.set_title(title, fontsize=8, pad=2)
         ax.set_xlabel(r"cutoff on $|\Delta S|$", fontsize=7.5)
-        style.panel(ax, "ab"[k], x=0.02, y=1.0)
+        style.panel(ax, "ab"[k], x=-0.02, y=1.06)
     axs[0].set_ylabel("untouched compartments\nwith a change > cutoff", fontsize=7.5)
     h, l = axs[0].get_legend_handles_labels()
     fig.legend(h, l, loc="upper center", ncol=3, frameon=False, fontsize=7.5, bbox_to_anchor=(0.58, 1.0),
@@ -223,9 +223,9 @@ def guidance():
     axl.set_title("Recall vs. cost, three cutoffs", fontsize=8, x=0.68)
     axl.text(0.02, 95.8, "95%", fontsize=7, color="#888888")
     style.panel(axl, "d", x=-0.2, y=1.04)
-    hs = [Patch(color=C["released"], label="released"),
-          Patch(color=C["classwide"], label="class-wide"),
-          Patch(color=C["footprint"], label="footprint"),
+    hs = [Line2D([], [], color=C["released"], lw=2.2, label="released"),
+          Line2D([], [], color=C["classwide"], lw=2.2, label="class-wide"),
+          Line2D([], [], color=C["footprint"], lw=2.2, label="footprint"),
           Line2D([], [], color="#555555", marker="o", mfc="white", ls="", ms=4.5, label="hollow: seed 2"),
           Line2D([], [], color="#555555", marker="s", ls="", ms=4.5, label="fixed-cost cutoff"),
           Line2D([], [], color="#555555", marker="o", ls="", ms=4.5, label="95% cutoff"),
@@ -368,13 +368,13 @@ def graph():
     fig, axs = plt.subplots(1, 3, figsize=(style.FULL, 1.7),
                             gridspec_kw=dict(wspace=0.5, left=0.15, right=0.99, top=0.84, bottom=0.27,
                                              width_ratios=[1, 0.85, 1.1]))
-    acc = C["alarm"]
+    acc = "black"   # graph figure: neutral, the GNN highlighted in black
     names = list(D.GRAPH_RANK)
     ys = -np.arange(len(names))
     ax = axs[0]
     for y, n in zip(ys, names):
         e, lo, hi = D.GRAPH_RANK[n]
-        col = acc if n == "Masked GNN" else "#333333"
+        col = acc if n == "Masked GNN" else "#8a8a8a"
         style.errbar(ax, y, e, lo, hi, col, horizontal=True, ms=3.8)
         ax.text(hi + 1.5, y, f"{e:.1f}", va="center", fontsize=7, color=col)
     ax.annotate("", xy=(89.6, -1.5), xytext=(75.5, -1.5),

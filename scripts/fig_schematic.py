@@ -126,7 +126,7 @@ def teaser():
     fig, ax = canvas(W, H)
 
     # (a) BioRender matched trays, rotated to 5x3 --------------------------
-    ax.text(0.02, H - 0.05, "(a) Matched edits of one held-out photo", fontweight="bold", fontsize=9,
+    ax.text(0.02, H - 0.05, "(a) Matched edits (illustration)", fontweight="bold", fontsize=9,
             va="top")
     ax.text(0.02, H - 0.24, "same pin  ·  same cutout and fill  ·  same distance", fontsize=7.5,
             va="top", style="italic", color="#333333")
