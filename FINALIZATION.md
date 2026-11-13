@@ -62,3 +62,21 @@
 All remaining major objections need new evidence, not writing (see the list above). Under the authors' instruction not to change the content, this is the strongest version the existing evidence supports. The internal target of 7.5 is not met. The obstacle is evidence breadth (one category, synthetic edits, two seeds, a failed primary control), not presentation.
 
 The best next action is to score the two fine-tuned heads on native LOCO pushpin faults and a handful of physically rearranged trays, and add a third seed. This uses the same cutoffs and scripts; no new method is needed.
+
+## Group comments (from another paper), applied where they fit (2026-11-13)
+| Comment | Paper 4 |
+|---|---|
+| Plain abstract with one message | Rewritten without "SALAD", "composition branch", "target recall" or "cutoff calibrated on development data". Message: perfect detection can still create almost a full tray of extra checks, and the training target is the cause. |
+| Contributions as connected sentences | Already done (bold labels within sentences). |
+| Literature review | Kept: two connected paragraphs. |
+| Toy example at the end of the intro | New paragraph before the contributions, built on Fig. 1(b). The intro's first three paragraphs were tightened so the example does not lengthen the paper. |
+| Variables before formulae; expand the math | Scene alarm: p, the 1[·] indicator and both cutoffs are defined before Eq. 1. New Eq. 2 gives t_s as an order statistic with its 10% conformal bound. New Eq. 5 gives t_c as G^(132). The loss: z_p, P, σ, y and the focal loss FL are defined before Eq. 6. New Eq. 9 gives the paired difference ΔC. No equation exceeds the column (no overfull boxes). |
+| Fig. 1 one column | The teaser is now a one-column figure: (a) the matched trays 2×2, (b) training mask → scores → "13 of 15" vs. "2 of 15" opened. |
+| One-column plots, visible error bars, matching fonts | Figs. 5, 6, 7 and 8 are now one column. Fig. 6 shows the extracted rows; its oracle rows are quoted in the text and in supplement Tab. 3. The pipeline (Fig. 2) and the real-photo figure (Fig. 3) stay full width, because they are unreadable at one-column size. Capped 95% intervals throughout; figure text is Times/STIX. |
+| Arrow colour differs from the plots; no text on scatter points | The Fig. 8 arrow is blue, which no data series uses. The "95%" label in Fig. 5(d) was moved off the points. |
+| Results-only tables, one column | Tab. 1 is already a one-column results table. The main paper has no text tables. |
+| More on results and the idea | The toy example states the core idea. The conclusion opens by answering the intro's two questions. |
+| Conclusion: reflects the intro, shortcomings, future directions | Rewritten in that order. |
+| Heun substep ratio; the other paper's Tables 2–3 | Not applicable to this paper. |
+
+The page limit still holds: everything up to and including the LLM statement ends on page 8, with the references on page 9 (9 PDF pages in total).

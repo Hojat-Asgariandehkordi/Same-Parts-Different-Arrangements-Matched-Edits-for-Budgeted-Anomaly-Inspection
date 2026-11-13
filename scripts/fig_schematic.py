@@ -122,54 +122,45 @@ def canvas(w, h):
 
 # ---------------------------------------------------------------------------
 def teaser():
-    W, H = style.FULL, 2.95
+    """One-column Fig. 1: (a) matched edits, (b) training target -> compartments opened."""
+    W, H = style.COL, 4.82
     fig, ax = canvas(W, H)
 
     # (a) BioRender matched trays, rotated to 5x3 --------------------------
-    ax.text(0.02, H - 0.05, "(a) Matched edits (illustration)", fontweight="bold", fontsize=9,
-            va="top")
-    ax.text(0.02, H - 0.24, "same pin  ·  same cutout and fill  ·  same distance", fontsize=7.5,
-            va="top", style="italic", color="#333333")
+    ax.text(0.0, H - 0.02, "(a) Matched edits (illustration)", fontweight="bold", fontsize=8.5, va="top")
     art = Image.open(style.FIG / "biorender" / "edits.jpg").convert("RGB")
-    boxes = [(10, 108, 256, 458), (263, 108, 510, 458), (516, 108, 762, 458), (769, 108, 1015, 458)]
-    tw = 1.36
-    pos = [(0.12, 1.65), (1.82, 1.65), (0.12, 0.38), (1.82, 0.38)]
-    labels = [("Source", "one pin per compartment", "no target", "#333333"),
-              ("Valid sham (allowed)", "moved within its compartment", "no target", C["sham"]),
-              ("Fault (breaks the rule)", "same move into the neighbour", "2 targets", C["fault"]),
-              ("Vacancy only", "pin removed", "1 target", C["vacancy"])]
-    for (bx, by), b, (t1, t2, t3, col) in zip(pos, boxes, labels):
+    boxes = [(10, 110, 252, 452), (263, 110, 505, 452), (516, 110, 758, 452), (769, 110, 1011, 452)]
+    tw = 1.52
+    pos = [(0.03, 3.48), (1.7, 3.48), (0.03, 2.08), (1.7, 2.08)]
+    labels = [("Source", "one pin per compartment", "#333333"),
+              ("Valid sham (allowed)", "moved within its compartment", C["sham"]),
+              ("Fault (breaks the rule)", "into the neighbour; 2 targets", C["fault"]),
+              ("Vacancy only", "pin removed; 1 target", C["vacancy"])]
+    for (bx, by), b, (t1, t2, col) in zip(pos, boxes, labels):
         im = np.asarray(art.crop(b).transpose(Image.ROTATE_90))
         th = tw * im.shape[0] / im.shape[1]
         ax.imshow(im, extent=(bx, bx + tw, by, by + th), zorder=2, interpolation="lanczos")
-        ax.text(bx, by - 0.04, t1, fontsize=8, fontweight="bold", color=col, va="top")
-        ax.text(bx, by - 0.2, t2 if t3 == "no target" else f"{t2}; {t3}", fontsize=7.5, va="top",
-                color="#333333")
-    ax.plot([3.42, 3.42], [0.1, H - 0.1], color="#cccccc", lw=0.6)
+        ax.text(bx, by - 0.03, t1, fontsize=7.5, fontweight="bold", color=col, va="top")
+        ax.text(bx, by - 0.17, t2, fontsize=7.5, va="top", color="#333333")
+    ax.plot([0.0, W], [1.79, 1.79], color="#cccccc", lw=0.6)
 
-    # (b) what the inspector receives ---------------------------------------
-    x0 = 3.55
-    ax.text(x0, H - 0.05, "(b) After an alarm on the fault: which compartments are opened?",
-            fontweight="bold", fontsize=9, va="top")
+    # (b) training target -> what is opened ---------------------------------
+    ax.text(0.0, 1.76, "(b) After an alarm: which compartments are opened?", fontweight="bold",
+            fontsize=8.5, va="top")
     fault = layout("fault")
     targets = {VAC: (C["target"], (0, (2.2, 1.4))), REC: (C["target"], "-")}
-    rows = [(1.72, "Class-wide target", "every pin of the class marked", True),
-            (0.56, "Footprint target", "only the pasted pin marked", False)]
-    mw = 0.98
-    for y, title, sub, broad in rows:
-        # training target on the same edited tray (vacated footprint marked in both)
+    mw = 0.9
+    rows = [(0.9, "Class-wide target: every pin marked", True),
+            (0.16, "Footprint target: only the pasted pin", False)]
+    for y, title, broad in rows:
         mpins = {k: (v if broad else []) for k, v in fault.items()}
         if not broad:
             mpins[REC] = [fault[REC][1]]
-        h = tray(ax, x0 + 0.02, y, mw, mpins, mask=True)
-        vac_mark(ax, x0 + 0.02, y, mw)
-        ax.text(x0 + 0.02, y + h + 0.08, title, fontsize=8, fontweight="bold", va="bottom",
+        h = tray(ax, 0.03, y, mw, mpins, mask=True)
+        vac_mark(ax, 0.03, y, mw)
+        ax.text(0.0, y + h + 0.05, title, fontsize=7.5, fontweight="bold", va="bottom",
                 color=C["classwide"] if broad else C["footprint"])
-        ax.text(x0 + 0.02, y - 0.05, "training mask $y$: " + sub, fontsize=7.5, va="top")
-        ax.text(x0 + 0.02, y - 0.2, "(grey: vacated spot, marked in both)", fontsize=7, va="top",
-                color="#555555")
-        arrow(ax, (x0 + mw + 0.08, y + h / 2), (x0 + mw + 0.34, y + h / 2))
-        # test-time compartment scores (schematic) and the queue
+        arrow(ax, (mw + 0.08, y + h / 2), (mw + 0.28, y + h / 2))
         vals = {}
         for c in range(NC):
             for r in range(NR):
@@ -182,36 +173,23 @@ def teaser():
         for k, v in vals.items():
             if k not in targets and v >= tc:
                 out[k] = (C["queued"], "-")
-        mx = x0 + mw + 0.42
+        mx = mw + 0.36
         tray(ax, mx, y, mw, fault, fill=vals, outline=out)
-        ax.text(mx, y + h + 0.08, "compartment scores at test", fontsize=7.5, va="bottom")
         n_q = sum(1 for k in out if k not in targets)
-        arrow(ax, (mx + mw + 0.08, y + h / 2), (mx + mw + 0.34, y + h / 2))
-        ax.text(mx + mw + 0.21, y + h / 2 + 0.05, r"$g\geq t_c$", fontsize=7.5, ha="center", va="bottom")
-        # queue as a 5x3 block of 15 boxes
-        qx = mx + mw + 0.42
-        bw = 0.135
-        for k in range(15):
-            col = C["target"] if k < 2 else (C["queued"] if k < 2 + n_q else "white")
-            ax.add_patch(Rectangle((qx + (k % 5) * bw, y + h - 0.02 - (k // 5 + 1) * bw), bw * .86, bw * .86,
-                                   fc=col, ec="#888888", lw=0.4, zorder=3))
-        ax.text(qx, y + h + 0.08, "compartments opened", fontsize=7.5, va="bottom")
-        ax.text(qx, y + h - 0.12 - 3 * bw, f"{2 + n_q} of 15", fontsize=9, fontweight="bold", va="top",
+        arrow(ax, (mx + mw + 0.08, y + h / 2), (mx + mw + 0.28, y + h / 2))
+        ax.text(mx + mw + 0.18, y + h / 2 + 0.04, r"$g\geq t_c$", fontsize=7, ha="center", va="bottom")
+        qx = mx + mw + 0.36
+        ax.text(qx, y + h / 2 + 0.05, f"{2 + n_q} of 15", fontsize=9, fontweight="bold", va="bottom",
                 color=C["classwide"] if broad else C["footprint"])
-        ax.text(qx, y + h - 0.33 - 3 * bw, f"2 targets + {n_q} untouched", fontsize=7.5, va="top")
-    # legend + colour bar
-    ly = 0.08
-    ax.add_patch(Rectangle((x0 + 0.02, ly), 0.12, 0.09, fc="none", ec=C["target"], lw=1.4))
-    ax.text(x0 + 0.18, ly + 0.045, "target", fontsize=7.5, va="center")
-    ax.add_patch(Rectangle((x0 + 0.62, ly), 0.12, 0.09, fc="none", ec=C["queued"], lw=1.4))
-    ax.text(x0 + 0.78, ly + 0.045, "queued untouched", fontsize=7.5, va="center")
-    cb = np.linspace(0, 1, 128)[None]
-    ax.imshow(cb, cmap=GREY, extent=(x0 + 1.95, x0 + 2.95, ly, ly + 0.09), aspect="auto", zorder=3)
-    ax.add_patch(Rectangle((x0 + 1.95, ly), 1.0, 0.09, fc="none", ec="#666666", lw=0.4, zorder=4))
-    ax.text(x0 + 1.9, ly + 0.045, "score 0", fontsize=7.5, ha="right", va="center")
-    ax.text(x0 + 3.0, ly + 0.045, "1", fontsize=7.5, va="center")
-    ax.plot([x0 + 1.95 + 0.6] * 2, [ly - 0.02, ly + 0.11], color=C["queued"], lw=1.0, zorder=5)
-    ax.text(x0 + 2.55, ly + 0.12, "$t_c$", fontsize=7.5, ha="center", va="bottom")
+        ax.text(qx, y + h / 2 - 0.02, "opened", fontsize=7.5, va="top")
+    ax.text(0.03, 0.13, "training mask", fontsize=7, va="top", color="#444444")
+    ax.text(mw + 0.36, 0.13, "scores at test", fontsize=7, va="top", color="#444444")
+    # legend
+    ly = -0.06
+    ax.add_patch(Rectangle((2.05, 0.03), 0.11, 0.08, fc="none", ec=C["target"], lw=1.3))
+    ax.text(2.2, 0.07, "target", fontsize=7, va="center")
+    ax.add_patch(Rectangle((2.6, 0.03), 0.11, 0.08, fc="none", ec=C["queued"], lw=1.3))
+    ax.text(2.75, 0.07, "queued", fontsize=7, va="center")
     style.save(fig, "teaser")
 
 

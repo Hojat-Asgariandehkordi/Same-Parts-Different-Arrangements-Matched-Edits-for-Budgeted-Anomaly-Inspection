@@ -31,27 +31,26 @@
 
 \begin{document}
 \maketitle
-\begin{strip}
-\centering
-\vspace{-2.2em}
-\includegraphics[width=\linewidth]{teaser.pdf}
-\captionsetup{hypcap=false}
-\captionof{figure}{\textbf{Where should an inspector look after an alarm?} (a)~Matched edits of one tray (rule: one pin per compartment): the same pin moves the same distance within its compartment (valid, no target) or into an occupied neighbour (fault). Cyan: compartments to check (dashed: vacated; solid: recipient). (b)~Schematic: marking every pin of the inserted class in training makes nearly the whole tray score high, so 13 of 15 compartments are opened; marking only the pasted pin opens just the 2 targets. Measured at 95\% recall: 11.07 vs.\ 0.20--0.45 untouched compartments (\cref{tab:inspection}). Tray art created in BioRender.}
-\label{fig:teaser}
-\captionsetup{hypcap=true}
-\end{strip}
+
 
 \begin{abstract}
-Anomaly detectors for industrial inspection are evaluated by whether they flag a defective product, yet an alarm is useful only if it also tells the inspector where to look. We study this gap for logical anomalies, where every part is intact but the arrangement violates a rule. Starting from 138 held-out photographs of a pushpin tray that must hold one pin per compartment, we construct matched edits in which the same pin is displaced by the same distance either within its compartment, which is valid, or into an occupied neighbour, which is a fault. The edits fix the two compartments that require inspection and allow us to measure, at a cutoff calibrated on development data, how many untouched compartments a detector queues. The released SALAD composition branch detects every fault, but at 95\% target recall it queues 11.07 of the 13 untouched compartments per fault. Fine-tuning only this branch with targets that mark the pasted part, rather than every part of the inserted class, reduces the cost to 0.20 and 0.45 compartments in two seeds while every fault is still detected; one seed, however, raises more false alarms on valid edits. The same design identifies which SALAD branch separates a valid from an invalid edit under a second rule, and exposes a degree pathway in a masked graph model.
+An anomaly detector that raises an alarm on a faulty product is useful only if it also tells the inspector where to look. We show that this second step can fail even when detection is perfect. We study a tray that must hold one pushpin per compartment and edit real photographs so that the same pin moves either within its own compartment, which is allowed, or into a neighbouring compartment, which breaks the rule. Because both edits change exactly the same pixels, they reveal precisely which two compartments need checking. A recent detector flags every faulty tray, yet to find nearly all the misplaced pins it also sends the inspector to 11 of the 13 untouched compartments. The cause lies in how the detector is trained: it learns to mark every pin as anomalous whenever one pin is added. Teaching it to mark only the pin that was actually moved reduces the extra checks to less than half a compartment, while every fault is still detected. Matched valid and invalid edits thus turn anomaly detection benchmarks into a measure of the work an alarm creates.
 \end{abstract}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{teaser.pdf}
+\caption{\textbf{Where should an inspector look after an alarm?} (a)~Matched edits of one tray (rule: one pin per compartment): the same pin moves the same distance within its compartment (valid, no target) or into an occupied neighbour (fault). Cyan: compartments to check (dashed: vacated; solid: recipient). (b)~Schematic: marking every pin of the inserted class in training makes nearly the whole tray score high, so 13 of 15 compartments are opened; marking only the pasted pin opens just the 2 targets. Measured at 95\% recall: 11.07 vs.\ 0.20--0.45 untouched compartments (\cref{tab:inspection}). Tray art created in BioRender.}
+\label{fig:teaser}
+\end{figure}
 
 \section{Introduction}
 \label{sec:intro}
-Visual anomaly detection is usually assessed by whether a system flags defective products~\cite{bergmann2019mvtec,roth2022patchcore,batzner2024}. On a production line, however, an alarm is only the first step: an operator must then locate the defect. For \emph{logical} anomalies~\cite{bergmann2022} this second step is particularly demanding. A pushpin tray with one empty and one doubled compartment contains the correct number of intact pins, and only their arrangement is wrong. A detector that flags such a tray is helpful if its map points to the two affected compartments, and of little use if it highlights the remaining thirteen as well.
+Visual anomaly detection is usually assessed by whether a system flags defective products~\cite{bergmann2019mvtec,roth2022patchcore,batzner2024}, yet on a production line an alarm is only the first step: an operator must then locate the defect. For \emph{logical} anomalies~\cite{bergmann2022} this second step is particularly demanding. A pushpin tray with one empty and one doubled compartment contains the correct number of intact pins, and only their arrangement is wrong; a detector is helpful if its map points to the two affected compartments, and of little use if it highlights the other thirteen as well. Current benchmarks do not measure this cost. MVTec LOCO~\cite{bergmann2022} reports image-level AUROC and saturated per-region overlap, and neither states how many locations an inspector must examine to recover nearly every problem. Measuring it requires knowing exactly which locations are wrong, which natural logical defects rarely provide; an extra screw in a bag may be any of several identical screws~\cite{fucka2025}.
 
-Current benchmarks do not measure this cost. MVTec LOCO~\cite{bergmann2022} reports image-level AUROC for detection and saturated per-region overlap for localization, and neither quantity states how many locations an inspector must examine to recover nearly every problem. Measuring it requires knowing exactly which locations are wrong, which natural logical defects rarely provide; an additional screw in a bag, for instance, may be any of several identical screws~\cite{fucka2025}.
+We obtain exact targets by intervention (\cref{fig:teaser}a). From each held-out normal photograph we move an intact pin either within its compartment (a \emph{valid sham}) or by the same distance into an occupied neighbour (a \emph{fault}). Both edits share the cutout, fill and displacement, so any difference in the detector's response is caused by the rule violation, and the fault fixes the two compartments that must be inspected. A scene alarm then decides whether a tray is opened, and a compartment cutoff fixed on development data decides which compartments are queued; we report the fraction of target compartments found (recall) and the number of untouched compartments queued (cost).
 
-We obtain exact targets by intervention (\cref{fig:teaser}a). From each held-out normal photograph we cut out an intact pin and move it either within its compartment, producing a \emph{valid sham}, or by the same distance into an occupied neighbour, producing a \emph{fault}; a third variant only removes the pin. Because all variants share the cutout, the background fill and the displacement, any difference in the detector's response is attributable to the rule violation, and the fault determines the two compartments that must be inspected. On top of these edits we define an inspection decision with an explicit cost (\cref{sec:method}): a scene alarm decides whether a tray is opened, and a compartment cutoff fixed on development data decides which compartments are queued. We report the fraction of target compartments found (recall) together with the number of untouched compartments queued (cost).
+A toy example makes the failure concrete (\cref{fig:teaser}b). Suppose a detector assigns each compartment a score, and the inspector opens every compartment whose score exceeds a cutoff chosen so that 95\% of misplaced pins are found. If the detector was trained to call every pin anomalous once a pin is inserted, the untouched compartments score almost as high as the two affected ones, the cutoff must fall below them, and the inspector opens 13 of 15 compartments to find 2. If it was trained to mark only the inserted pin, the same cutoff separates the two affected compartments from the rest, and the inspector opens 2. Both detectors raise the same alarm and would receive the same image-level AUROC; only the second is useful.
 
 We apply this protocol to SALAD~\cite{fucka2025}, a recent logical anomaly detector whose composition branch scores predicted part maps, and ask two questions: how much inspection effort does a detector that catches every fault still impose, and what in its training determines that effort? Our paper offers the following contributions. As an \textbf{evaluation design}, we introduce matched valid and invalid edits with identical pixel changes, together with a recall--cost criterion calibrated on development data (\cref{sec:method}). As a \textbf{diagnosis}, we show that the released composition branch detects all 138 faults and ranks each above its sham, yet queues 11.07 of 13 untouched compartments per fault at 95\% target recall (\cref{sec:released}). As a \textbf{remedy}, we show that the training target governs this cost: marking only the pasted part reduces it to 0.20--0.45 compartments across two seeds, with paired intervals far from zero (\cref{sec:footprint}). Finally, as \textbf{transfer checks}, the same design identifies which SALAD branch carries the evidence under a second rule and isolates a degree pathway in a masked link predictor (\cref{sec:transfer,sec:graph}).
 
@@ -91,12 +90,17 @@ Every variant is scored through two interfaces with identical detector weights. 
 
 \subsection{Calibrated inspection queue}
 \label{sec:queue}
-We model the two decisions of an inspector, whether to open a tray and which compartments to check, with cutoffs that are fixed before testing (\cref{alg:queue}). A tray raises an alarm when its highest pixel score exceeds a scene cutoff $t_s$,
+We model the two decisions of an inspector, whether to open a tray and which compartments to check, with two cutoffs that are fixed before testing (\cref{alg:queue}): a scene cutoff $t_s\in[0,1]$ on the highest pixel score of a map, and a compartment cutoff $t_c\in[0,1]$ on the highest score inside a compartment. Writing $p$ for a pixel of the $256{\times}256$ grid, a tray raises an alarm when its highest pixel score exceeds the scene cutoff,
 \begin{equation}
  \mathrm{alarm}_i=\mathbb{1}\bigl[\max_p S_i(p)>t_s\bigr],
  \label{eq:alarm}
 \end{equation}
-where $t_s$ is the 63rd smallest maximum among 69 unedited validation photographs. This strict split-conformal cutoff~\cite{bates2023} ensures that at most 10\% of normal trays raise an alarm. Each compartment then receives its maximum score $g_i(e)=\max S_i|_e$, and the inspection queue at compartment cutoff $t_c$ is
+where $\mathbb{1}[\cdot]$ equals 1 if its argument holds and 0 otherwise. Let $M_{(1)}\le\dots\le M_{(69)}$ be the sorted maxima $\max_p S_v(p)$ of 69 unedited validation photographs $v$. We set
+\begin{equation}
+ t_s=M_{(63)},\qquad 63=\lceil 0.9\,(69+1)\rceil,
+ \label{eq:ts}
+\end{equation}
+a strict split-conformal cutoff~\cite{bates2023}: a new normal tray, exchangeable with the validation trays, exceeds $t_s$ with probability at most $1-63/70=10\%$. Each compartment then receives its maximum score $g_i(e)=\max S_i|_e$, and the inspection queue at compartment cutoff $t_c$ is
 \begin{equation}
  \Q_i=\begin{cases}\{e\in\E:\ g_i(e)\ge t_c\} & \text{if }\mathrm{alarm}_i=1,\\ \emptyset & \text{otherwise,}\end{cases}
  \label{eq:queue}
@@ -109,7 +113,11 @@ so that the targets of a tray without an alarm count as missed. Over $n$ faults,
 \end{equation}
 \ie, the fraction of target compartments that are queued and the mean number of untouched compartments queued per fault, which ranges from 0 to 13. For example, a fault whose queue contains both targets and three other compartments contributes $2/2$ to recall and $3$ to cost.
 
-The compartment cutoff is fitted on 69 matched \emph{development} faults, constructed in the same way from validation photographs, and never on test data. The \emph{95\% cutoff} is the highest threshold that attains 95\% target recall on these faults; with $2\times69=138$ development targets it is the 132nd largest target score, since $\lceil0.95\cdot138\rceil=132$. A \emph{fixed-cost cutoff} instead admits at most 0.5 untouched compartments per development fault and is the 35th largest untouched score, since $\lfloor0.5\cdot69\rfloor+1=35$; for this cutoff the comparison in \cref{eq:queue} is strict ($g_i(e)>t_c$). Both cutoffs are fitted separately for each map and interface, and on test data we report the achieved $R$ and $C$ together with alarm rates on all four variants.
+The compartment cutoff is fitted on 69 matched \emph{development} faults $\mathcal{D}$, constructed in the same way from validation photographs, and never on test data. Let $G=\{g_j(e): j\in\mathcal{D},\,e\in\T_j\}$ be the multiset of the $2\times69=138$ development target scores, with $g_j(e)=0$ for a fault without an alarm, and let $G^{(k)}$ denote its $k$-th largest element. The \emph{95\% cutoff} is the highest threshold that attains 95\% target recall on these faults,
+\begin{equation}
+ t_c^{95}=G^{(\lceil 0.95\,|G|\rceil)}=G^{(132)}.
+ \label{eq:tc}
+\end{equation} A \emph{fixed-cost cutoff} instead admits at most 0.5 untouched compartments per development fault and is the 35th largest untouched score, since $\lfloor0.5\cdot69\rfloor+1=35$; for this cutoff the comparison in \cref{eq:queue} is strict ($g_i(e)>t_c$). Both cutoffs are fitted separately for each map and interface, and on test data we report the achieved $R$ and $C$ together with alarm rates on all four variants.
 
 Because some systems instead present a fixed number of compartments, we also report the fraction of faults whose two highest-scoring compartments are both targets (\emph{top 2}) and the mean rank of the second target, breaking ties by compartment index. Finally, as a counterpart to sPRO~\cite{bergmann2022,fucka2025}, we sweep a common threshold over all compartments, treating targets as positives and untouched fault compartments together with all source and sham compartments as negatives, and integrate target recall up to a false-compartment rate of 0.05, normalized by 0.05 (\emph{region area}). Unlike $(R,C)$, this summary is computed on test data and ignores the scene alarm, so it measures ranking quality rather than the cost at an operating point.
 
@@ -131,12 +139,12 @@ Because some systems instead present a fixed number of compartments, we also rep
 
 \subsection{Footprint supervision}
 \label{sec:targets}
-SALAD trains its composition branch on synthetic edits of normal part maps. A discriminative U-Net predicts logits $z_p$ and is fitted to a binary target mask $y$ with
+SALAD trains its composition branch on synthetic edits of normal part maps. For an edited map, a discriminative U-Net predicts a logit $z_p\in\mathbb{R}$ at every pixel $p$ of the pixel set $P$, so that $\sigma(z_p)=1/(1+e^{-z_p})$ is the predicted anomaly probability, and a binary target mask $y\in\{0,1\}^{P}$ states which pixels should be called anomalous. With the sigmoid focal loss $\mathrm{FL}(z,y)=-\alpha_y(1-q)^{\gamma}\log q$, where $q=\sigma(z)$ if $y=1$ and $q=1-\sigma(z)$ otherwise, $\alpha_1=\alpha=0.25$, $\alpha_0=1-\alpha$ and $\gamma=2$~\cite{lin2017focal}, the branch minimizes
 \begin{equation}
  \mathcal{L}=5\cdot\frac{1}{|P|}\sum_p \mathrm{FL}(z_p,y_p)+\frac{1}{|P|}\sum_p\bigl|\sigma(z_p)-y_p\bigr|,
  \label{eq:loss}
 \end{equation}
-where $\mathrm{FL}$ is the sigmoid focal loss with $\alpha=0.25$ and $\gamma=2$~\cite{lin2017focal} and the weight 5 is that of the released implementation, $\sigma$ is the logistic function, and $P$ is the set of pixels. When a part of class $k$ is inserted, producing the edited map $m'$, the released implementation marks every pixel of that class~\cite{fucka2025},
+where the first term emphasizes hard pixels, the second penalizes the absolute probability error, and the weight 5 is that of the released implementation. Since $y$ is the only supervision of the map, it determines which pixels the branch learns to score high. When a part of class $k$ is inserted, producing the edited map $m'$, the released implementation marks every pixel of that class~\cite{fucka2025},
 \begin{equation}
  y^{\text{cw}}(p)=\mathbb{1}[m'(p)=k]\qquad\text{(class-wide)},
 \end{equation}
@@ -148,7 +156,12 @@ For relocations, both policies additionally mark the vacated footprint, shams al
 
 \subsection{Evaluation protocol}
 \label{sec:protocol}
-The primary comparison is the difference in cost $C$ between the footprint and class-wide policies on extracted maps. Before testing, we specified that a useful reduction must remove at least one untouched compartment with a 95\% interval excluding zero, while keeping the achieved recall at or above 90\% and within 5 points of the control, the fault and vacancy alarm rates at or above 95\% and within 3 points, and the increase in sham alarms below 5 points. Attributing the effect to the target additionally requires that the class-wide control meet a \emph{competence criterion} on development data: alarm rates and compartment AUROC of at least 90\%. Intervals are computed from 4,000 bootstrap resamples of the original photographs, in which all variants, policies and interfaces of a photograph are resampled together, and are conditional on the fitted models and cutoffs. Two seeds and two fixed halves of the test photographs (63 and 75) assess stability.
+The primary comparison is the paired difference in cost between the footprint and class-wide policies on extracted maps,
+\begin{equation}
+ \Delta C=\frac{1}{n}\sum_{i=1}^{n}\Bigl(|\Q_i^{\text{fp}}\setminus\T_i|-|\Q_i^{\text{cw}}\setminus\T_i|\Bigr),
+ \label{eq:delta}
+\end{equation}
+where $\Q_i^{\text{fp}}$ and $\Q_i^{\text{cw}}$ are the queues of the same fault under each policy at its own 95\% cutoff; negative values favour the footprint policy. Before testing, we specified that a useful reduction must remove at least one untouched compartment with a 95\% interval excluding zero, while keeping the achieved recall at or above 90\% and within 5 points of the control, the fault and vacancy alarm rates at or above 95\% and within 3 points, and the increase in sham alarms below 5 points. Attributing the effect to the target additionally requires that the class-wide control meet a \emph{competence criterion} on development data: alarm rates and compartment AUROC of at least 90\%. Intervals are computed from 4,000 bootstrap resamples of the original photographs, in which all variants, policies and interfaces of a photograph are resampled together, and are conditional on the fitted models and cutoffs. Two seeds and two fixed halves of the test photographs (63 and 75) assess stability.
 
 \section{Experiments}
 \label{sec:results}
@@ -196,19 +209,19 @@ The reason is that the fault alters the released map across almost the entire tr
 \label{sec:footprint}
 Fine-tuning with footprint targets reduces the cost at 95\% recall from 11.07 untouched compartments to 0.20 and 0.45 in the two seeds, at an achieved recall of 95.3\% and 96.0\% (\cref{tab:inspection}). The paired reductions relative to the released model are 10.88 [10.12, 11.56] and 10.62 [9.86, 11.31] compartments, and relative to the class-wide fine-tunes, the pre-specified control, 12.80 [12.72, 12.87] and 12.55 [12.45, 12.65] (\cref{fig:forest}). Every fault and vacancy still raises an alarm, and all recall differences have intervals that include zero and remain above the 5-point floor. The reduction is also observed on oracle maps (10.30 and 10.04 relative to the released model) and on both fixed halves of the photographs ($-12.87$ and $-12.75$ for seed~1, $-12.63$ and $-12.48$ for seed~2). \Cref{fig:maps} illustrates a typical case in which the released map queues all 13 untouched compartments and the footprint map queues none.
 
-\begin{figure*}[t]
+\begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{guidance_maps.pdf}
 \caption{\textbf{Footprint supervision empties the queue.} (a,b)~Extracted maps of the median fault (greyscale); cyan: targets, pink: untouched compartments at or above the pre-specified 95\% cutoff $t_c$. (c)~Compartment ROC from a test sweep, with the area up to 5\% from \cref{tab:inspection} (class-wide curves, area 39.3--39.4, omitted). (d)~Recall against cost at the fixed-cost (square), 95\% (circle) and 98\% (triangle) development cutoffs; hollow: seed~2; the two class-wide seeds overlap at fixed cost; the axis is broken between 1 and 11.}
 \label{fig:maps}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[t]
+\begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{paired_forest.pdf}
-\caption{\textbf{Footprint targets remove 10 to 13 untouched compartments per fault without losing recall.} Paired differences at the pre-specified cutoffs, footprint minus each comparator, with 95\% intervals; hollow: seed~2. Bold: the pre-specified primary contrast. Dotted: pre-specified thresholds. $\dagger$: this seed's control fails the competence check (\cref{sec:upstream}). Values: supplement Tabs.~3 and 8.}
+\caption{\textbf{Footprint targets remove 10 to 13 untouched compartments per fault without losing recall.} Paired differences on extracted maps, footprint minus each comparator, at the pre-specified cutoffs, with 95\% intervals; hollow: seed~2; bold: the primary contrast. Dotted: pre-specified thresholds ($-1$ compartment, $-5$ and $+5$ pp). $\dagger$: this seed's control fails the competence criterion (\cref{sec:upstream}). Oracle maps and values: supplement Tabs.~3 and 8.}
 \label{fig:forest}
-\end{figure*}
+\end{figure}
 
 The advantage holds at the other operating points. At the fixed-cost cutoff, the footprint heads recover 100.0\% and 98.2\% of targets at achieved costs of 0.38 and 0.57, compared with 81.9\% at 0.30 for the released model. In a descriptive sweep at an equal realized cost of 0.50 compartments, recall is 82.6\% for the released model and 100.0\% and 97.1\% for the footprint heads, corresponding to gains of $+17.4$ [13.4, 21.0] and $+14.5$ [9.8, 18.8] points. The region area increases from 81.6\% to 96.3\% and 89.6\%; this ranking-based summary agrees in direction but does not reveal how much shorter the calibrated queue becomes.
 
@@ -216,19 +229,19 @@ Two secondary outcomes depend on the seed. Sham alarms increase from 7 for the r
 
 The class-wide fine-tunes, in contrast, retain every alarm but assign high scores to the entire tray: all 13 untouched compartments are queued and the top-2 rate is zero. With a development compartment AUROC of about 48\%, they fail the competence criterion of \cref{sec:protocol}. Within this recipe, the comparison with the class-wide arm attributes the difference to the target alone, whereas the comparison with the released model measures the benefit of the complete adaptation, which also introduces rule-aware edits.
 
-\begin{figure*}[t]
+\begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{branches.pdf}
 \caption{\textbf{Which SALAD branch separates a fault from a valid edit?} (a)~Juice edit: a same-type (valid) or other-type (fault) icon, pasted identically. (b,c)~Scenes alarmed per branch at its own 10\% normal cutoff (dashed); on pushpin composites, global RGB and fusion also alarm on most untouched sources. (d)~Juice fault-minus-sham alarm gap, 95\% intervals. Photos: MVTec LOCO AD, CC BY-NC-SA 4.0.}
 \label{fig:branches}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[t]
+\begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{graph_audit.pdf}
 \caption{\textbf{A masked GNN responds to switched links through node degree} (78 GlaS fields, 12 donors). (a)~Edited-graph AUROC; local spacing adds 15.3 points to typed distance. (b)~AUROC of the change between matched graphs; hollow: 50 by construction. (c)~Top-four recovery of the masked GNN as fitted, with degree inputs fixed, and refit with mean aggregation. Donor-paired 95\% intervals.}
 \label{fig:graph}
-\end{figure*}
+\end{figure}
 
 \subsection{Continuation of the original recipe}
 \label{sec:upstream}
@@ -251,9 +264,9 @@ For a candidate link $e=(u,v)$ between nodes $u$ and $v$, let $z_e$ be the predi
 \section{Conclusion}
 \label{sec:conclusion}
 \label{sec:discussion}
-We have shown that matched valid and invalid edits turn a logical anomaly benchmark into a measurement of inspection effort. A detector that detects every fault and ranks its targets well can nevertheless direct the inspector to 11 of 13 untouched compartments at high recall, a cost that image AUROC and top-$k$ rates do not reveal and region overlap only ranks, whereas the recall--cost pair at a development cutoff states it directly. This cost is largely determined by the training target: marking every part of the inserted class is appropriate for interchangeable parts, but for parts tied to locations it teaches the network that a single extra pin renders the whole tray anomalous. Marking only the pasted part reduces the cost to below half a compartment. Wherever parts are tied to locations, we argue that logical anomaly detectors should be evaluated by recall together with inspection cost against matched valid edits.
+We asked how much inspection effort a detector that catches every fault still imposes, and what in its training determines that effort. Matched valid and invalid edits answer both questions. The released composition branch detects every fault and ranks its targets well, yet at high recall it directs the inspector to 11 of 13 untouched compartments, a cost that image AUROC and top-$k$ rates do not reveal and region overlap only ranks. The cost is set by the training target: marking every part of the inserted class suits interchangeable parts, but for parts tied to locations it teaches the network that one extra pin makes the whole tray anomalous, and marking only the pasted part reduces the cost to below half a compartment.
 
-The evidence has a clear scope. Our strongest result concerns two compartments in a registered tray. Both seeds improve the calibrated high-recall queue, whereas the top-2 ranking and sham specificity depend on the seed. Training uses edits constructed from a known rule, so the gain is established for that setting. The interventions are synthetic composites of held-out photographs that match the changed pixels, the cutout and the displacement, but they are not physical rearrangements, and physical tray identities are unavailable. All intervals are conditional on the fitted heads and cutoffs. Because the class-wide rule-aware controls fail the competence criterion, mechanistic claims rest on the continuation of the original recipe, for which one seed passes. The juice experiment covers one additional rule and the graph analysis one masking design; native LOCO results and an exploratory cardiac query are reported in the supplementary material. Three next steps follow directly from these findings: physical rearrangements of real trays to confirm the effect outside composites, a retraining of the full released recipe with footprint targets from scratch, and the same recall--cost evaluation on further logical rules where parts are tied to locations.
+These findings have a clear scope. They concern one registered tray and synthetic composites rather than physical rearrangements; the top-2 ranking and sham specificity depend on the seed; and because the rule-aware class-wide controls fail the competence criterion, the mechanism rests on the continuation of the original recipe, where one seed passes. The natural next steps are physical rearrangements of real trays, retraining the full recipe with footprint targets, and recall--cost evaluation on further rules where parts are tied to locations, which together would establish inspection cost as a standard criterion for logical anomaly detection.
 
 \section*{LLM Usage Statement}
 OpenAI Codex was used to implement and run the experiments, check code and data provenance, produce figures and tables from saved outputs, and draft text. Anthropic Claude was used to edit the text and redraw figures from the recorded outputs. Tray and network illustrations in Figs.~1--2 were generated with BioRender; labels were typeset separately, and quantitative panels plot recorded results deterministically. The authors take full responsibility for the content.
