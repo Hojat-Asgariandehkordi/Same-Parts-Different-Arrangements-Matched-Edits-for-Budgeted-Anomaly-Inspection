@@ -99,11 +99,22 @@ A fresh reviewer agent, not involved in making the figures, reviewed every figur
   - Section titles are standardised.
   - Wording is aligned with the main paper: "alarm", "compartment", "pre-specified".
 
+## Official CVPR 2027 author kit
+- `cvpr.sty` and `ieeenat_fullname.bst` were replaced by the copies in `author-kit-CVPR2027-v1-latex.zip`. The `.bst` was already identical; `cvpr.sty` differed by one line.
+- `main.tex` and `supplement.tex` now follow the kit skeleton:
+  - the kit header, then `\usepackage[review]{cvpr}`, then `\input{preamble}` before hyperref, the kit's hyperref options and `\confName` / `\confYear`;
+  - the author line is "Anonymous CVPR submission".
+- `preamble.tex` is the kit's file, with `microtype` enabled (the kit offers it as a commented option) and this paper's extra packages added: `cuted` for the teaser, `algorithm` and `algpseudocode`.
+- Removed the paper's own `cleveref` load: the kit loads cleveref itself, with its abbreviations ("Fig.", "Sec.", "Tab.").
+- Removed the duplicate `amsmath` / `amssymb` loads and the `\raggedbottom` override.
+- The supplement now uses the kit's `\maketitlesupplementary`.
+- **Page limit:** the kit says everything except the references counts toward the 8 pages. Everything up to and including the LLM statement now ends on page 8, and the references start on page 9 (9 pages in total).
+
 ## Open items for the group
 1. **Number conflict:** for the GlaS local-spacing gain, the draft text gave 15.3 [11.0, 20.3]. `tables/switches.tex` (original-length tier) gives +15.3 [10.9, 20.1]. The main text now uses the table. Please confirm.
 2. **Confirm the recovered values** listed above.
 3. **Paper scope:** the graph section (GlaS/HVSMR) is only loosely connected to the title and the pushpin story. Decide whether it stays in the main paper or moves to the supplement. Moving it would free about two-thirds of a page.
-4. **Page limit:** content ends on page 8. Check whether CVPR 2027 counts the LLM statement against the limit.
+4. **Page limit:** resolved. Everything except the references fits in 8 pages under the official kit.
 5. **Verify the 9 new references** at the end of `references.bib`: bergmann2019mvtec, roth2022patchcore, li2021cutpaste, zavrtanik2021draem, gardner2020contrast, kaushik2020learning, geirhos2020shortcut, angelopoulos2023gentle, lin2017focal.
 6. **LLM statement:** a sentence about Claude was added to both statements. Check them against the CVPR 2027 policy.
 7. **Anonymity:** this GitHub repo is **public**, under a named account, with the paper's exact title. Make it private during review.
