@@ -80,3 +80,23 @@ The best next action is to score the two fine-tuned heads on native LOCO pushpin
 | Heun substep ratio; the other paper's Tables 2–3 | Not applicable to this paper. |
 
 The page limit still holds: everything up to and including the LLM statement ends on page 8, with the references on page 9 (9 PDF pages in total).
+
+## Skill-file checklist applied (2026-11-13 evening)
+- **Contributions:** "First, … Second, … Third, … Finally, …", with no bold labels.
+- **Proposition 1 (normal alarm rate):** under exchangeability, P(M > t_s) = 7/70 = 10%, with a two-line proof. This makes the 10% claim behind Eq. 2 a stated result.
+- **Experimental setup is now Sec. 4,** written as prose:
+  - 4.1 Datasets: the pushpin train/validation/test roles, juice, GlaS and HVSMR.
+  - 4.2 Experimental settings.
+  - 4.3 Baselines: released max and 99th percentile, the class-wide control, the upstream-only continuation, the SALAD branches and the explicit rule. It gives a methodological reason for not comparing other detectors: changing the architecture would confound it with the target.
+  - 4.4 Evaluation metrics: R, C and ΔC (Eq. 9), the definition of "+x pp [a, b]", the pre-specified criteria, top 2 and region area. These were moved out of Sec. 3.3 and 3.5.
+- **Sec. 5 Results** follows, leading with the main comparison.
+- **Captions:** no bold anywhere. Table 1's caption is shorter and points to Sec. 4.4 for the definitions.
+- **Citation order:** Fig. 4 (maps) now comes before Fig. 5 (collateral), in the order the text first cites them.
+- **Supplement:** its cross-reference to the main paper's collateral figure now reads "Fig. 5".
+- **Checks:**
+  - every number in the earlier text is still present (checked by script);
+  - no overfull lines;
+  - everything through the LLM statement ends on page 8, with the references on page 9;
+  - Table 1's pointer "supplement Tab. 2" matches the compiled supplement.
+- **To keep the 8-page limit:** sentences that duplicated the new Datasets subsection were removed; the one-column plots lost a little padding (text sizes unchanged); and a few sentences were tightened.
+- **Not applicable:** the Spline naming rule and the reference-row rule for tables. Table 1 has no oracle or reference rows, and the released rows are not bolded.

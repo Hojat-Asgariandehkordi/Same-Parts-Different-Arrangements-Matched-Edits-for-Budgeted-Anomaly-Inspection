@@ -47,7 +47,7 @@ def no_frame(ax):
 # ---------------------------------------------------------------------------
 def photos():
     """Fig. 3: real matched edits (oracle maps) and the per-compartment change of the released map."""
-    fig = plt.figure(figsize=(style.FULL, 2.25))
+    fig = plt.figure(figsize=(style.FULL, 2.05))
     gs = fig.add_gridspec(2, 5, width_ratios=[1, 1, 1, 1, 0.06], wspace=0.05, hspace=0.42,
                           left=0.075, right=0.955, top=0.86, bottom=0.08)
     heads = ["Source", "Valid sham", "Fault", r"Fault: $|\Delta S|$ per compartment"]
@@ -105,7 +105,7 @@ def photos():
 def collateral():
     """Fig. 4: share of untouched compartments whose released map changes by more than a cutoff."""
     rec = D.recovered()
-    fig, axs = plt.subplots(1, 2, figsize=(style.COL, 1.75), sharey=True,
+    fig, axs = plt.subplots(1, 2, figsize=(style.COL, 1.62), sharey=True,
                             gridspec_kw=dict(wspace=0.12, left=0.2, right=0.98, top=0.74, bottom=0.24))
     names = {"#c75e39": ("Fault", C["fault"]), "#325a87": ("Vacancy only", C["vacancy"]),
              "#178277": ("Valid sham", C["sham"])}
@@ -140,7 +140,7 @@ def collateral():
 # ---------------------------------------------------------------------------
 def guidance():
     """Fig. 5 (one column): maps with queues, compartment ROC, recall vs. cost at three cutoffs."""
-    fig = plt.figure(figsize=(style.COL, 3.8))
+    fig = plt.figure(figsize=(style.COL, 3.3))
     top = fig.add_gridspec(1, 2, left=0.01, right=0.99, top=0.94, bottom=0.68, wspace=0.08)
     for k, (asset, queued, cut, title) in enumerate([
             ("guidance_maps_0", D.MAP_QUEUED_RELEASED, D.MAP_CUTOFF["released"], "Released"),
@@ -251,7 +251,7 @@ def forest():
         y += 0.3
     ys = -np.array(ys)
     cols = {"released": C["released"], "classwide": C["classwide"], "upstream": C["upstream"]}
-    fig, axs = plt.subplots(1, 3, figsize=(style.COL, 2.25), sharey=True,
+    fig, axs = plt.subplots(1, 3, figsize=(style.COL, 2.1), sharey=True,
                             gridspec_kw=dict(wspace=0.14, left=0.355, right=0.985, top=0.86, bottom=0.17))
     spec = (("unt", "$\\Delta$ untouched", -1.0, (-14.5, 1.5), [-10, 0]),
             ("rec", "$\\Delta$ recall (pp)", -5.0, (-8, 8), [-5, 0, 5]),
@@ -290,7 +290,7 @@ def forest():
 # ---------------------------------------------------------------------------
 def branches():
     """Fig. 7 (one column): which SALAD branch separates a fault from a valid sham."""
-    fig = plt.figure(figsize=(style.COL, 3.35))
+    fig = plt.figure(figsize=(style.COL, 2.9))
     gs = fig.add_gridspec(2, 2, left=0.13, right=0.99, top=0.89, bottom=0.12, wspace=0.5, hspace=0.72)
     sub = gs[0, 0].subgridspec(2, 3, height_ratios=[2.1, 1], hspace=0.1, wspace=0.06)
     tags = [("Source", "cherry"), ("Valid sham", "same"), ("Fault", "other")]
@@ -349,7 +349,7 @@ def branches():
 # ---------------------------------------------------------------------------
 def graph():
     """Fig. 8 (one column): graph check (GlaS)."""
-    fig = plt.figure(figsize=(style.COL, 2.85))
+    fig = plt.figure(figsize=(style.COL, 2.45))
     gs = fig.add_gridspec(2, 2, left=0.33, right=0.97, top=0.92, bottom=0.12, wspace=0.28, hspace=0.75,
                           height_ratios=[1.35, 0.85])
     acc = "black"
