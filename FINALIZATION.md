@@ -80,3 +80,6 @@ The best next action is to score the two fine-tuned heads on native LOCO pushpin
 | Heun substep ratio; the other paper's Tables 2–3 | Not applicable to this paper. |
 
 The page limit still holds: everything up to and including the LLM statement ends on page 8, with the references on page 9 (9 PDF pages in total).
+
+## Skill-file checklist: applied, then reverted at the authors' request (2026-11-13)
+That pass (First/Second contributions, Proposition 1, a separate Experimental setup section, unbolded captions) was reverted with commit "Revert the skill-checklist changes". The paper is back to the version above, after the group comments.
